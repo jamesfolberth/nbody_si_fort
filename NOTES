@@ -1,0 +1,7 @@
+
+compiling + linking
+===================
+
+Use ldd exec_file to determine if the proper dyn. libs are going to load at runtime
+
+Use -Wl,-rpath=/dir/to/add to add the dir to the ld runtime search path (alternative to export LD_LIBRARY_PATH=/dir/to/add)
