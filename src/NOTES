@@ -1,0 +1,2 @@
+
+Executables are (generally) left in src/ directory, so the path to the data dir should be ../data/

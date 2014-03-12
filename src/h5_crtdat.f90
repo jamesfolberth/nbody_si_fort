@@ -27,7 +27,7 @@ PROGRAM H5_CRTDAT
 
   IMPLICIT NONE
 
-  CHARACTER(LEN=8), PARAMETER :: filename = "dsetf.h5" ! File name
+  CHARACTER(LEN=16), PARAMETER :: filename = "../data/dsetf.h5" ! File name
   CHARACTER(LEN=4), PARAMETER :: dsetname = "dset"     ! Dataset name
 
   INTEGER(HID_T) :: file_id       ! File identifier
