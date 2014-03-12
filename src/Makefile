@@ -17,9 +17,16 @@ LDADDPATH= -Wl,-rpath=$(HDF5_HOME)/lib # add this dir to the runtime search path
 
 all: orbit h5_crtdat
 
-orbit: orbit.f90
+utils.o: utils.f90
+	$(FORT) -c utils.f90 $(FORTOPTS) $(INCHDF) $(LIBHDF)
+
+orbital_data.o: orbital_data.f90
+	$(FORT) -c orbital_data.f90 $(FORTOPTS) $(INCHDF) $(LIBHDF)
+
+orbit: orbit.f90 utils.o orbital_data.o
 	$(FORT) -c orbit.f90 $(FORTOPTS) $(INCHDF) $(LIBHDF)
-	$(FORT) -o orbit $(FORTOPTS) $(LIBHDF) $(LDLIBS) $(LDADDPATH) orbit.o
+	$(FORT) -o orbit $(FORTOPTS) $(LIBHDF) $(LDLIBS) $(LDADDPATH) utils.o orbital_data.o orbit.o
+	./orbit
 
 # use ldd h5_crtdat to check that the proper lib is going to load
 h5_crtdat: h5_crtdat.f90
