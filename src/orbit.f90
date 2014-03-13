@@ -7,14 +7,16 @@ program main
    use orbital_data
    use coords
 
+   implicit none
+
 
    ! run config parameters
-   character (len=255), parameter :: savefile='data/orbit.h5'
-   integer (kind=intk), parameter :: N_record_int = 10 ! record state every N_record_int time steps
+   character (len=256), parameter :: savefile='../data/orbit.h5'
+   integer (kind=intk), parameter :: N_record_int = 1000 ! record state every N_record_int time steps
    integer (kind=intk), parameter :: N_saves = 10
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
-   real (kind=dblk), parameter :: t1 = t0+10**4 ! JD=2430000.5
+   real (kind=dblk), parameter :: t1 = t0+10**5 ! JD=2430000.5
    real (kind=dblk), parameter :: dt = 1 ! time step
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/N_record_int)
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
@@ -53,6 +55,7 @@ program main
 
    call apply_jacobi(Q(:,1),P(:,1),Qjac(:,1),Pjac(:,1),jacQ,jacP)
 
+   call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param)
 
   
    ! main loop

@@ -44,7 +44,7 @@ module coords
 
             jacQ(3*i+1,3*i+1) = 1d0
             jacQ(3*i+2,3*i+2) = 1d0
-            jacQ(3*i+2,3*i+3) = 1d0
+            jacQ(3*i+3,3*i+3) = 1d0
          end do
 
          ! Compute PLU decomp of jacQ (so we can solve later)
@@ -93,10 +93,12 @@ module coords
       end subroutine jacobi_setup
 
 
+      !
       subroutine apply_jacobi(q,p,qjac,pjac,jacQ,jacP)
          real (kind=dblk) :: q(:), p(:), qjac(:), pjac(:),&
                              jacQ(:,:), jacP(:,:)
 
+         ! TODO write special sparse mat-vec routine?
          call dgemv("N",3*n_masses,3*n_masses,1d0,jacQ,3*n_masses,q,1,0d0,qjac,1)
          call dgemv("N",3*n_masses,3*n_masses,1d0,jacP,3*n_masses,p,1,0d0,pjac,1)
 

@@ -1,6 +1,19 @@
 
+Copy over the matlab stuff for testing
+
+
+coords.f90
+   Test jacobi stuff
+   apply_jacobi: sparse mat-vec? It might not be worth it... test it
+
+
+orbit.f90
+
+
+orbital_data.f90
+   Is all the data right?
+   Sun mass seems slightly wrong in m_vec (compared to 1Gyr WH initial data)
+
 utils.f90
-   linspace
-   data saving stuff
 
 
