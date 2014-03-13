@@ -22,7 +22,8 @@ program main
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
    
    ! variables
-   real (kind=dblk), allocatable :: t(:)
+   real (kind=dblk), allocatable :: t(:), P_wrk(:), Q_wrk(:), &
+                                    Pjac_wrk(:), Qjac_wrk(:)
    real (kind=dblk), allocatable :: P(:,:),Q(:,:),Pjac(:,:),Qjac(:,:)
    real (kind=dblk), allocatable :: jacQ(:,:), LUjacQ(:,:), &
                                     jacP(:,:), LUjacP(:,:), &
@@ -36,6 +37,8 @@ program main
 
    ! initialize variables
    allocate(t(N_records))
+   allocate(P_wrk(3*n_masses), Q_wrk(3*n_masses))
+   allocate(Pjac_wrk(3*n_masses), Qjac_wrk(3*n_masses))
    allocate(P(3*n_masses, N_records), Q(3*n_masses, N_records))
    allocate(Pjac(3*n_masses, N_records), Qjac(3*n_masses, N_records))
    allocate(jacQ(3*n_masses, 3*n_masses), LUjacQ(3*n_masses,3*n_masses))
@@ -46,16 +49,21 @@ program main
 
    P=0; Q=0; Pjac=0; Qjac=0;
 
-   call WH_initial_data(P,Q)
 
+   ! Set the initial conditions
+   call WH_initial_data(P,Q)
 
 
    ! set up jacobi coordinate functions
    call jacobi_setup(jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,eta,m_vec_jac,g_param_jac)
 
    call apply_jacobi(Q(:,1),P(:,1),Qjac(:,1),Pjac(:,1),jacQ,jacP)
+   call apply_jacobi_inv(Qjac(:,1),Pjac(:,1),Q(:,1),P(:,1),PjacQ,LUjacQ,PjacP,LUjacP)
 
-   call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param)
+   
+   if (debug) then
+      call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param)
+   end if
 
   
    ! main loop

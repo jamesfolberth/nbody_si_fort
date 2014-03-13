@@ -93,23 +93,85 @@ module coords
       end subroutine jacobi_setup
 
 
-      !
+      ! convert to Jacobi coordinates (uses sparse mat-vec)
       subroutine apply_jacobi(q,p,qjac,pjac,jacQ,jacP)
          real (kind=dblk) :: q(:), p(:), qjac(:), pjac(:),&
                              jacQ(:,:), jacP(:,:)
 
-         ! TODO write special sparse mat-vec routine?
-         call dgemv("N",3*n_masses,3*n_masses,1d0,jacQ,3*n_masses,q,1,0d0,qjac,1)
-         call dgemv("N",3*n_masses,3*n_masses,1d0,jacP,3*n_masses,p,1,0d0,pjac,1)
+         integer (kind=intk) :: i,j
+         !real (kind=dblk) :: qjt(18),pjt(18)
+
+         !do j=1,3*n_masses
+         !   do i=1,3*n_masses
+         !      qjac(i) = qjac(i) + jacQ(i,j)*q(j);
+         !      pjac(i) = pjac(i) + jacP(i,j)*p(j);
+         !   end do
+         !end do
+
+         !call print_vector(qjac)
+         !call print_vector(pjac)
+
+         !qjt = qjac
+         !pjt = pjac
+         !qjac = 0
+         !pjac = 0
+
+         ! qjac <- jacQ*q
+         ! pjac <- jacP*p
+         ! Note that jacQ and jacP have the same sparsity pattern
+         ! This is about 3 times faster than the above (dense) mat-vec
+         do j = 1,3*n_masses,3
+            ! multiply against first three rows of jacQ, jacP
+            qjac(1) = qjac(1) + jacQ(1,j)*q(j)
+            qjac(2) = qjac(2) + jacQ(2,j+1)*q(j+1)
+            qjac(3) = qjac(3) + jacQ(3,j+2)*q(j+2)
+
+            pjac(1) = pjac(1) + jacP(1,j)*p(j)
+            pjac(2) = pjac(2) + jacP(2,j+1)*p(j+1)
+            pjac(3) = pjac(3) + jacP(3,j+2)*p(j+2)
+         end do
+
+         do i=4,3*n_masses,3
+            qjac(i) = qjac(i) + jacQ(i,1)*q(1)
+            qjac(i+1) = qjac(i+1) + jacQ(i+1,2)*q(2)
+            qjac(i+2) = qjac(i+2) + jacQ(i+2,3)*q(3)
+
+            pjac(i) = pjac(i) + jacP(i,1)*p(1)
+            pjac(i+1) = pjac(i+1) + jacP(i+1,2)*p(2)
+            pjac(i+2) = pjac(i+2) + jacP(i+2,3)*p(3)
+         end do
+ 
+         do j=4,3*n_masses,3
+            do i = j,3*n_masses,3
+               qjac(i) = qjac(i) + jacQ(i,j)*q(j)
+               qjac(i+1) = qjac(i+1) + jacQ(i+1,j+1)*q(j+1)
+               qjac(i+2) = qjac(i+2) + jacQ(i+2,j+2)*q(j+2)
+
+               pjac(i) = pjac(i) + jacP(i,j)*p(j)
+               pjac(i+1) = pjac(i+1) + jacP(i+1,j+1)*p(j+1)
+               pjac(i+2) = pjac(i+2) + jacP(i+2,j+2)*p(j+2)
+            end do
+         end do
+
+         !call print_vector(qjac)
+         !call print_vector(pjac)
+         !print *, norm2(qjac-qjt)
+         !print *, norm2(pjac-pjt)
 
       end subroutine apply_jacobi
 
-      subroutine apply_jacobi_inv(qjac,pjac,q,p,LUjacQ,PjacQ,LUjacP,PjacP)
+
+      ! Convert from Jacobi coordinates
+      subroutine apply_jacobi_inv(qjac,pjac,q,p,PjacQ,LUjacQ,PjacP,LUjacP)
          real (kind=dblk) :: qjac(:),pjac(:),q(:),p(:),&
                              LUjacQ(:,:), LUjacP(:,:)
          integer (kind=intk) :: PjacQ(:), PjacP(:)
+
+         ! TODO write sparse FW/BW subs routine
+
       
       end subroutine apply_jacobi_inv
+
 
 
 end module coords

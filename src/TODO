@@ -3,9 +3,8 @@ Copy over the matlab stuff for testing
 
 
 coords.f90
-   Test jacobi stuff
-   apply_jacobi: sparse mat-vec? It might not be worth it... test it
-
+   Test jacobi_inv
+   apply_jacobi_inv: write sparse FW/BW subs?
 
 orbit.f90
 
