@@ -120,15 +120,6 @@ module orbital_data
                print *, "error: orbital_data.f90: number of variables in Q does not match number of masses in m_vec"
             end if
          end if
-            
-
- 
-
-
-
- 
-
-
 
       end subroutine WH_initial_data
 
