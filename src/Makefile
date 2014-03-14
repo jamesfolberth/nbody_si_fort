@@ -4,7 +4,8 @@ SHELL=/usr/bin/bash
 
 FORT=gfortran
 
-FORTOPTS = -Wall -fbounds-check -funroll-loops -finline -ffast-math -march=native -mtune=native -O2
+#FORTOPTS = -Wall -fbounds-check -funroll-loops -finline -ffast-math -march=native -mtune=native -O2
+FORTOPTS = -Wall -Wextra -march=native -mtune=native -funroll-loops -finline -finline-functions -O2 -g -pg
 
 PWD=$(shell pwd)
 HDF5_HOME=$(PWD)/../hdf5
@@ -17,21 +18,26 @@ LDADDPATH= -Wl,-rpath=$(HDF5_HOME)/lib # add this dir to the runtime search path
 
 all: orbit h5_crtdat
 
+# Modules
+coords.o: coords.f90
+	$(FORT) -c coords.f90 $(FORTOPTS)
+
+kepler.o: kepler.f90
+	$(FORT) -c kepler.f90 $(FORTOPTS)
+
+orbital_data.o: orbital_data.f90
+	$(FORT) -c orbital_data.f90 $(FORTOPTS)
+
+symplectic.o: symplectic.f90
+	$(FORT) -c symplectic.f90 $(FORTOPTS)
+
 utils.o: utils.f90
 	$(FORT) -c utils.f90 $(FORTOPTS) $(INCHDF)
 
-orbital_data.o: orbital_data.f90
-	$(FORT) -c orbital_data.f90 $(FORTOPTS) $(INCHDF)
-
-coords.o: coords.f90
-	$(FORT) -c coords.f90 $(FORTOPTS) $(INCHDF)
-
-kepler.o: kepler.f90
-	$(FORT) -c kepler.f90 $(FORTOPTS) $(INCHDF)
-
-orbit: orbit.f90 utils.o orbital_data.o coords.o kepler.o
+# Main programs
+orbit: orbit.f90 coords.o kepler.o orbital_data.o symplectic.o utils.o
 	$(FORT) -c orbit.f90 $(FORTOPTS) $(INCHDF)
-	$(FORT) -o orbit $(FORTOPTS) $(LIBHDF) $(LDLIBS) $(LDADDPATH) utils.o orbital_data.o coords.o kepler.o orbit.o 
+	$(FORT) -flto -o orbit $(FORTOPTS) $(LIBHDF) $(LDLIBS) $(LDADDPATH) utils.o orbital_data.o coords.o kepler.o symplectic.o orbit.o 
 	./orbit
 
 # use ldd h5_crtdat to check that the proper lib is going to load

@@ -1,9 +1,11 @@
 ! coords.f90
 
 module coords
-
+   
    use utils
    use orbital_data
+
+   implicit none
 
    contains
 
@@ -85,9 +87,12 @@ module coords
          end do
          
          do i=1,n_masses-1
-            jacT(3*i+1, 3*(i+1)+1:3*(n_masses-1)+1:3) = m_vec(i+2:n_masses)/eta(i+1)
-            jacT(3*i+2, 3*(i+1)+2:3*(n_masses-1)+2:3) = m_vec(i+2:n_masses)/eta(i+1)
-            jacT(3*i+3, 3*(i+1)+3:3*(n_masses-1)+3:3) = m_vec(i+2:n_masses)/eta(i+1)
+            jacT(3*i+1, 3*(i+1)+1:3*(n_masses-1)+1:3) = m_vec(i+2:n_masses)&
+               /eta(i+1)
+            jacT(3*i+2, 3*(i+1)+2:3*(n_masses-1)+2:3) = m_vec(i+2:n_masses)&
+               /eta(i+1)
+            jacT(3*i+3, 3*(i+1)+3:3*(n_masses-1)+3:3) = m_vec(i+2:n_masses)&
+               /eta(i+1)
          end do
 
       end subroutine jacobi_setup
@@ -120,6 +125,8 @@ module coords
          ! pjac <- jacP*p
          ! Note that jacQ and jacP have the same sparsity pattern
          ! This is about 3 times faster than the above (dense) mat-vec
+         qjac = 0.0_dblk
+         pjac = 0.0_dblk
          do j = 1,3*n_masses,3
             ! multiply against first three rows of jacQ, jacP
             qjac(1) = qjac(1) + jacQ(1,j)*q(j)
@@ -178,6 +185,76 @@ module coords
       
       end subroutine apply_jacobi_inv
 
+      
+      ! Convert Qjac to Jacobi coordinates
+      ! used in symplectic.f90
+      subroutine apply_jacobi_invq(qjac,q,PjacQ,LUjacQ)
+         real (kind=dblk) :: qjac(:),q(:),&
+                             LUjacQ(:,:)
+         integer (kind=intk) :: PjacQ(:)
+
+         integer (kind=intk) :: info
+
+         ! TODO write sparse FW/BW subs routine
+         q = qjac
+         call dgetrs('N',3*n_masses,1,LUjacQ,3*n_masses,PjacQ,q,3*n_masses,info)
+         
+      
+      end subroutine apply_jacobi_invq
+
+
+      ! convert P to Jacobi coordinates (uses sparse mat-vec)
+      ! used in symplectic.f90
+      subroutine apply_jacobip(p,pjac,jacP)
+         real (kind=dblk) :: p(:), pjac(:),jacP(:,:)
+
+         integer (kind=intk) :: i,j
+         ! pjac <- jacP*p
+         ! Note that jacQ and jacP have the same sparsity pattern
+         ! This is about 3 times faster than a dense mat-vec
+         do j = 1,3*n_masses,3
+            ! multiply against first three rows of jacP
+            pjac(1) = pjac(1) + jacP(1,j)*p(j)
+            pjac(2) = pjac(2) + jacP(2,j+1)*p(j+1)
+            pjac(3) = pjac(3) + jacP(3,j+2)*p(j+2)
+         end do
+
+         do i=4,3*n_masses,3
+            pjac(i) = pjac(i) + jacP(i,1)*p(1)
+            pjac(i+1) = pjac(i+1) + jacP(i+1,2)*p(2)
+            pjac(i+2) = pjac(i+2) + jacP(i+2,3)*p(3)
+         end do
+ 
+         do j=4,3*n_masses,3
+            do i = j,3*n_masses,3
+               pjac(i) = pjac(i) + jacP(i,j)*p(j)
+               pjac(i+1) = pjac(i+1) + jacP(i+1,j+1)*p(j+1)
+               pjac(i+2) = pjac(i+2) + jacP(i+2,j+2)*p(j+2)
+            end do
+         end do
+
+      end subroutine apply_jacobip
+
+
+      ! Apply qt = jacT*q
+      ! jacT is a sum from Saha 1994, represented as mat-vec
+      ! This is essentially sparse mat-vec
+      subroutine apply_jacT(q,qt,jacT)
+         real (kind=dblk) :: q(:),qt(:),jacT(:,:)
+
+         integer (kind=intk) :: i,j
+
+         qt = 0.0_dblk
+         qt(1:3) = q(1:3)
+         do j=4,3*n_masses,3
+            do i=4,j,3
+               qt(i) = qt(i) + jacT(i,j)*q(j)
+               qt(i+1) = qt(i+1) + jacT(i+1,j+1)*q(j+1)
+               qt(i+2) = qt(i+2) + jacT(i+2,j+2)*q(j+2)
+            end do
+         end do
+
+      end subroutine apply_jacT
 
 
 end module coords

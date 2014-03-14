@@ -1,11 +1,12 @@
 ! orbit.f90
 
-program main
+program orbit
    
    use utils ! helper routines, data types
    use orbital_data
    use coords 
    use kepler
+   use symplectic
 
    implicit none
 
@@ -30,15 +31,20 @@ program main
                                     jacT(:,:), & ! used in interaction_dV 
                                     eta(:),m_vec_jac(:), g_param_jac(:)
    integer (kind=intk), allocatable :: PjacQ(:), PjacP(:)
-      ! variables local to kepler_step
-   real (kind=dblk), allocatable :: kep_r(:), kep_v(:), kep_u(:),&
-                                    kep_a(:), kep_n(:), kep_EC(:), kep_ES(:),&
-                                    kep_e(:), kep_dE(:), kep_dtv(:),&
-                                    kep_C(:), kep_S(:),&
-                                    kep_f(:), kep_g(:), kep_aor(:),&
-                                    kep_fp(:), kep_gp(:)
+   ! variables 'local' to kepler_step
+   real (kind=dblk) :: kep_r(n_masses), kep_v(n_masses), kep_u(n_masses),&
+      kep_a(n_masses), kep_n(n_masses), kep_EC(n_masses), kep_ES(n_masses),&
+      kep_e(n_masses), kep_dE(n_masses), kep_dtv(n_masses),kep_C(n_masses),&
+      kep_S(n_masses),kep_f(n_masses), kep_g(n_masses), kep_aor(n_masses),&
+      kep_fp(n_masses),kep_gp(n_masses)
 
-   integer (kind=intk) :: i,j, save_counter
+   ! variables 'local' to symp_step
+   real (kind=dblk) :: symp_interdv(3*n_masses),symp_interdvjac(3*n_masses),&
+      symp_Q_wrk(3*n_masses),symp_qimqj(3*n_masses,3*n_masses),&
+      symp_qimqjnrm(n_masses,n_masses),symp_ind_wrk1(3*n_masses),&
+      symp_ind_wrk2(3*n_masses)
+
+   integer (kind=intk) :: i,j,save_counter
    real (kind=dblk) :: ti
 
 
@@ -54,13 +60,18 @@ program main
    allocate(jacT(3*n_masses,3*n_masses))
    allocate(eta(n_masses), m_vec_jac(n_masses), g_param_jac(n_masses))
 
-   ! local to kepler_step
-   allocate(kep_r(n_masses), kep_v(n_masses), kep_u(n_masses),&
-            kep_a(n_masses), kep_n(n_masses), kep_EC(n_masses),&
-            kep_ES(n_masses), kep_e(n_masses), kep_dE(n_masses),&
-            kep_dtv(n_masses),kep_C(n_masses), kep_S(n_masses),&
-            kep_f(n_masses),kep_g(n_masses), kep_aor(n_masses),&
-            kep_fp(n_masses), kep_gp(n_masses))
+   ! 'local' to kepler_step
+   !allocate(kep_r(n_masses), kep_v(n_masses), kep_u(n_masses),&
+   !         kep_a(n_masses), kep_n(n_masses), kep_EC(n_masses),&
+   !         kep_ES(n_masses), kep_e(n_masses), kep_dE(n_masses),&
+   !         kep_dtv(n_masses),kep_C(n_masses), kep_S(n_masses),&
+   !         kep_f(n_masses),kep_g(n_masses), kep_aor(n_masses),&
+   !         kep_fp(n_masses), kep_gp(n_masses))
+
+   ! 'local' to symp_step
+   !allocate(symp_interdv(3*n_masses),symp_interdvjac(3*n_masses),&
+   !   symp_Q_wrk(3*n_masses),symp_qimqj(3*n_masses,n_masses),&
+   !   symp_qimqjnrm(n_masses,n_masses),symp_wrk(3*n_masses,n_masses))
 
 
    P=0; Q=0; Pjac=0; Qjac=0;
@@ -96,9 +107,10 @@ program main
    ti = t0
    
    ! Do half a step of kepler
+   ! TODO should ti also be moved forward by 0.5dt?
    call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt, kep_r,kep_v,kep_u,kep_a,&
-                    kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
-                    kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
+      kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
+      kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
 
    ! testing for kepler_step
    !Qjac(:,1) = Qjac_wrk;
@@ -114,26 +126,29 @@ program main
         
          ! second-order SI method (with 0.5*dt from above and below)
          ! Do a full step of SI
+         call symp_step(Qjac_wrk,Pjac_wrk,dt,symp_interdv,symp_interdvjac,&
+            symp_Q_wrk,symp_qimqj,symp_qimqjnrm,jacP,PjacQ,LUjacQ,jacT,&
+            symp_ind_wrk1,symp_ind_wrk2,m_vec,m_vec_jac,g_const)
 
          ! Do full step of kepler
          call kepler_step(Qjac_wrk, Pjac_wrk, dt, kep_r,kep_v,kep_u,kep_a,&
-                    kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
-                    kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
-
-
+            kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
+            kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
          
          ti = ti + dt;
       end do
 
       ! Record state of system
-      i=i+1; t(i)=ti;
+      i=i+1; 
+      t(i)=ti;
       Qjac(:,i) = Qjac_wrk; Pjac(:,i) = Pjac_wrk;
       call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,i),P(:,i),&
          PjacQ,LUjacQ,PjacP,LUjacP)
+
+      ! TODO print percentage
       
       ! save data every N_save_int iterations of i
       if (mod(i,N_save_int) == 0) then
-         !if (debug) print *, "saving data (but not really)"
          call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,&
             PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,&
             g_param,g_param_jac)
@@ -142,5 +157,19 @@ program main
 
    end do
 
+   ! Finish the integration with a half-step (0.5dt) of kepler
+   call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt, kep_r,kep_v,kep_u,kep_a,&
+      kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
+      kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
 
-end program main
+   Qjac(:,i) = Qjac_wrk; Pjac(:,i) = Pjac_wrk;
+   call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,i),P(:,i),&
+      PjacQ,LUjacQ,PjacP,LUjacP)
+ 
+   call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,&
+      PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,&
+      g_param,g_param_jac)
+
+   print *, "Computations complete!"
+
+end program orbit

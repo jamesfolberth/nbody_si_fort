@@ -10,18 +10,26 @@ module kepler
    ! Initial value problem I from Danby
    subroutine kepler_step(Qjac_wrk, Pjac_wrk,tau,r,v,u,a,n,EC,ES,&
                           e,dE,dtv,C,S,f,g,aor,fp,gp,m_vec_jac,g_param_jac)
-      real (kind=dblk) :: Qjac_wrk(:), Pjac_wrk(:),tau, &
-                          r(:), v(:), u(:), a(:), n(:), EC(:), ES(:),&
-                          e(:), dE(:), dtv(:), C(:), S(:),&
-                          f(:),g(:),aor(:),fp(:),gp(:),m_vec_jac(:),&
-                          g_param_jac(:)
+      real (kind=dblk), intent(inout) :: Qjac_wrk(3*n_masses),&
+         Pjac_wrk(3*n_masses),r(n_masses),v(n_masses),u(n_masses),a(n_masses),&
+         n(n_masses),EC(n_masses),ES(n_masses),e(n_masses),dE(n_masses),&
+         dtv(n_masses), C(n_masses), S(n_masses),f(n_masses),g(n_masses),&
+         aor(n_masses),fp(n_masses),gp(n_masses)
+
+      real (kind=dblk), intent(in) :: tau,m_vec_jac(n_masses),&
+         g_param_jac(n_masses)
 
       integer (kind=intk) :: i
       real (kind=dblk) :: bigR(3), bigV(3), temp(3*n_masses)
+      !real (kind=dblk) :: r(n_masses),v(n_masses),u(n_masses),a(n_masses),&
+      !   n(n_masses),EC(n_masses),ES(n_masses),e(n_masses),dE(n_masses),&
+      !   dtv(n_masses), C(n_masses), S(n_masses),f(n_masses),g(n_masses),&
+      !   aor(n_masses),fp(n_masses),gp(n_masses)
 
-      r = 0.0_dblk
-      v = 0.0_dblk
-      u = 0.0_dblk
+
+      !r = 0.0_dblk
+      !v = 0.0_dblk
+      !u = 0.0_dblk
       do i=1,n_masses-1
          bigV = Pjac_wrk(3*i+1:3*i+3)/m_vec_jac(i+1)
          bigR = Qjac_wrk(3*i+1:3*i+3)
@@ -45,8 +53,8 @@ module kepler
       ES = u / (n*a*a)
       e = sqrt(EC*EC+ES*ES)
 
-      dE = 0.0_dblk
-      dtv = 0.0_dblk
+      !dE = 0.0_dblk
+      !dtv = 0.0_dblk
       call kepeq2(dE, dtv, tau, e, n, EC, ES)
       
       C = dcos(dE); S = dsin(dE);
@@ -72,7 +80,8 @@ module kepler
 
    ! Solve Kepler's equation for IVP I in Danby
    subroutine kepeq2(dE, dtv, tau, e, n, EC, ES)
-      real (kind=dblk) :: dE(:), dtv(:), tau, e(:), n(:), EC(:), ES(:)
+      real (kind=dblk), intent(out) :: dE(:), dtv(:)
+      real (kind=dblk), intent(in) :: tau, e(:), n(:), EC(:), ES(:)
 
       integer (kind=dblk) :: i,counter
       real (kind=dblk) :: ndt,y,sigma,dx,c,s,f,fp,fpp,fppp
