@@ -2,10 +2,10 @@
 
 program main
    
-   use HDF5 ! HDF5 for saving data
    use utils ! helper routines, data types
    use orbital_data
-   use coords
+   use coords 
+   use kepler
 
    implicit none
 
@@ -17,7 +17,7 @@ program main
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
    real (kind=dblk), parameter :: t1 = t0+10**5 ! JD=2430000.5
-   real (kind=dblk), parameter :: dt = 1 ! time step
+   real (kind=dblk), parameter :: dt = 1.11111111111111_dblk ! time step
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/N_record_int)
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
    
@@ -30,6 +30,13 @@ program main
                                     jacT(:,:), & ! used in interaction_dV 
                                     eta(:),m_vec_jac(:), g_param_jac(:)
    integer (kind=intk), allocatable :: PjacQ(:), PjacP(:)
+      ! variables local to kepler_step
+   real (kind=dblk), allocatable :: kep_r(:), kep_v(:), kep_u(:),&
+                                    kep_a(:), kep_n(:), kep_EC(:), kep_ES(:),&
+                                    kep_e(:), kep_dE(:), kep_dtv(:),&
+                                    kep_C(:), kep_S(:),&
+                                    kep_f(:), kep_g(:), kep_aor(:),&
+                                    kep_fp(:), kep_gp(:)
 
    integer (kind=intk) :: i,j, save_counter
    real (kind=dblk) :: ti
@@ -47,6 +54,15 @@ program main
    allocate(jacT(3*n_masses,3*n_masses))
    allocate(eta(n_masses), m_vec_jac(n_masses), g_param_jac(n_masses))
 
+   ! local to kepler_step
+   allocate(kep_r(n_masses), kep_v(n_masses), kep_u(n_masses),&
+            kep_a(n_masses), kep_n(n_masses), kep_EC(n_masses),&
+            kep_ES(n_masses), kep_e(n_masses), kep_dE(n_masses),&
+            kep_dtv(n_masses),kep_C(n_masses), kep_S(n_masses),&
+            kep_f(n_masses),kep_g(n_masses), kep_aor(n_masses),&
+            kep_fp(n_masses), kep_gp(n_masses))
+
+
    P=0; Q=0; Pjac=0; Qjac=0;
 
 
@@ -57,37 +73,73 @@ program main
    ! set up jacobi coordinate functions
    call jacobi_setup(jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,eta,m_vec_jac,g_param_jac)
 
-   call apply_jacobi(Q(:,1),P(:,1),Qjac(:,1),Pjac(:,1),jacQ,jacP)
-   call apply_jacobi_inv(Qjac(:,1),Pjac(:,1),Q(:,1),P(:,1),PjacQ,LUjacQ,PjacP,LUjacP)
+   Q_wrk = Q(:,1); P_wrk = P(:,1);
+   call apply_jacobi(Q(:,1),P(:,1),Qjac_wrk,Pjac_wrk,jacQ,jacP)
+   Qjac(:,1) = Qjac_wrk; Pjac(:,1) = Pjac_wrk;
+
+   !call apply_jacobi(Q(:,1),P(:,1),Qjac(:,1),Pjac(:,1),jacQ,jacP)
+   !call apply_jacobi_inv(Qjac(:,1),Pjac(:,1),Q_wrk,P_wrk,PjacQ,LUjacQ,PjacP,LUjacP)
+   !print *, norm2(Q(:,1)-Q_wrk)
+   !print *, norm2(P(:,1)-P_wrk)
 
    
    if (debug) then
-      call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param)
+      call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param,g_param_jac)
    end if
 
   
    ! main loop
-   if (debug) then
-      write (*,"(A,10ES13.4)"), "Num iterations (approx) = ",(t1-t0)/dt
-   end if
+   write (*,"(A,10ES13.4)"), "Num iterations (approx) = ",(t1-t0)/dt
 
    i = 0
    save_counter = 0
    ti = t0
+   
+   ! Do half a step of kepler
+   call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt, kep_r,kep_v,kep_u,kep_a,&
+                    kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
+                    kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
+
+   ! testing for kepler_step
+   !Qjac(:,1) = Qjac_wrk;
+   !Pjac(:,1) = Pjac_wrk;
+   !if (debug) then
+   !   call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param,g_param_jac)
+   !end if
+
+
    do while (ti < t1)
 
       do j=1,N_record_int
+        
+         ! second-order SI method (with 0.5*dt from above and below)
+         ! Do a full step of SI
+
+         ! Do full step of kepler
+         call kepler_step(Qjac_wrk, Pjac_wrk, dt, kep_r,kep_v,kep_u,kep_a,&
+                    kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
+                    kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
+
+
          
          ti = ti + dt;
       end do
 
       ! Record state of system
       i=i+1; t(i)=ti;
+      Qjac(:,i) = Qjac_wrk; Pjac(:,i) = Pjac_wrk;
+      call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,i),P(:,i),&
+         PjacQ,LUjacQ,PjacP,LUjacP)
       
       ! save data every N_save_int iterations of i
       if (mod(i,N_save_int) == 0) then
          !if (debug) print *, "saving data (but not really)"
+         call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,&
+            PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,&
+            g_param,g_param_jac)
+
       end if
+
    end do
 
 

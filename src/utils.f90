@@ -7,6 +7,7 @@ module utils
 
    integer, parameter :: intk = kind(1) ! get kind numbers of various types
    integer, parameter :: dblk = kind(1d0)
+   real (kind=dblk), parameter :: pi = 4.0_dblk*atan(1.0_dblk)
    logical, parameter :: debug = .true.
 
 
@@ -120,13 +121,15 @@ module utils
    ! HDF5 !
    !!!!!!!!
    ! {{{
-   subroutine save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jacT,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param)
+   subroutine save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jacT,&
+                        PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,&
+                        g_const,g_param,g_param_jac)
       character (len=256) :: savefile
       real (kind=dblk) :: t(:),Q(:,:),P(:,:),Qjac(:,:),Pjac(:,:),&
                           jacQ(:,:),jacP(:,:),jacT(:,:),&
                           LUjacQ(:,:),LUjacP(:,:),&
                           m_vec(:),m_vec_jac(:),&
-                          g_const,g_param
+                          g_const,g_param,g_param_jac(:)
       integer (kind=intk) :: PjacQ(:),PjacP(:)
 
       integer (kind=intk) :: h5error, file_id
@@ -151,6 +154,7 @@ module utils
       call write_dset(file_id, m_vec_jac, "m_vec_jac")
       call write_dset(file_id, g_const, "g_const")
       call write_dset(file_id, g_param, "g_param")
+      call write_dset(file_id, g_param_jac, "g_param_jac")
     
       call h5fclose_f(file_id,h5error)
       call h5close_f(h5error)

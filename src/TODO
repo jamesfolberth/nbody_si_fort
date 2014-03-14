@@ -4,7 +4,7 @@ Copy over the matlab stuff for testing
 
 coords.f90
    Test jacobi_inv
-   apply_jacobi_inv: write sparse FW/BW subs?
+   apply_jacobi_inv: write sparse FW/BW subs
 
 orbit.f90
 

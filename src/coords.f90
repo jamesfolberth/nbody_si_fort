@@ -27,7 +27,7 @@ module coords
          g_param_jac(1) = eta(1)*g_param
          do i=2,n_masses
             m_vec_jac(i) = eta(i-1)/eta(i)*m_vec(i)
-            g_param_jac = eta(i)/eta(i-1)*g_param
+            g_param_jac(i) = eta(i)/eta(i-1)*g_param
          end do
 
          ! Qjac = jacQ*Q 
@@ -167,8 +167,14 @@ module coords
                              LUjacQ(:,:), LUjacP(:,:)
          integer (kind=intk) :: PjacQ(:), PjacP(:)
 
-         ! TODO write sparse FW/BW subs routine
+         integer (kind=intk) :: info
 
+         ! TODO write sparse FW/BW subs routine
+         q = qjac
+         call dgetrs('N',3*n_masses,1,LUjacQ,3*n_masses,PjacQ,q,3*n_masses,info)
+         
+         p = pjac
+         call dgetrs('N',3*n_masses,1,LUjacP,3*n_masses,PjacP,p,3*n_masses,info)
       
       end subroutine apply_jacobi_inv
 

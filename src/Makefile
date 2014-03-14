@@ -26,9 +26,12 @@ orbital_data.o: orbital_data.f90
 coords.o: coords.f90
 	$(FORT) -c coords.f90 $(FORTOPTS) $(INCHDF)
 
-orbit: orbit.f90 utils.o orbital_data.o coords.o
+kepler.o: kepler.f90
+	$(FORT) -c kepler.f90 $(FORTOPTS) $(INCHDF)
+
+orbit: orbit.f90 utils.o orbital_data.o coords.o kepler.o
 	$(FORT) -c orbit.f90 $(FORTOPTS) $(INCHDF)
-	$(FORT) -o orbit $(FORTOPTS) $(LIBHDF) $(LDLIBS) $(LDADDPATH) utils.o orbital_data.o coords.o orbit.o
+	$(FORT) -o orbit $(FORTOPTS) $(LIBHDF) $(LDLIBS) $(LDADDPATH) utils.o orbital_data.o coords.o kepler.o orbit.o 
 	./orbit
 
 # use ldd h5_crtdat to check that the proper lib is going to load
