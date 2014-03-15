@@ -1,6 +1,6 @@
-! orbit.f90
+! lyapunov.f90
 
-program orbit
+program lyapunov
    
    use utils ! helper routines, data types
    use orbital_data
@@ -147,4 +147,4 @@ program orbit
       g_param,g_param_jac)
 
    print *, "Computation complete!"
-end program orbit
+end program lyapunov

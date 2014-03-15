@@ -20,7 +20,7 @@ module symplectic
       integer (kind=intk) :: PjacQ(:)
 
 
-     integer (kind=intk) :: i,j
+      integer (kind=intk) :: i,j
       real (kind=dblk) :: temp(3), qhnrm(n_masses),qjacnrm(n_masses)
 
       ! Calculate the gradient of the potential for the "kick" to Pjac
@@ -112,7 +112,7 @@ module symplectic
 
       call apply_jacT(ind_wrk1,ind_wrk2,jacT)
      
-      
+     
       do i=1,n_masses-1
          ind_wrk1(3*i+1:3*i+3) = -g_const*m_vec(1)*m_vec(i+1) &
             / (qjacnrm(i+1)**3) * (Qjac_wrk(3*i+1:3*i+3) - qjacnrm(i+1)**3*&
