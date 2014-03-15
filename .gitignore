@@ -7,5 +7,5 @@ h5_crtdat
 *.o
 
 hdf5/
-data/
 matlab/
+data/

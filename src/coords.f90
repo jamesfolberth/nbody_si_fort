@@ -99,9 +99,9 @@ module coords
 
 
       ! convert to Jacobi coordinates (uses sparse mat-vec)
-      subroutine apply_jacobi(q,p,qjac,pjac,jacQ,jacP)
-         real (kind=dblk) :: q(:), p(:), qjac(:), pjac(:),&
-                             jacQ(:,:), jacP(:,:)
+      pure subroutine apply_jacobi(q,p,qjac,pjac,jacQ,jacP)
+         real (kind=dblk),intent(in) :: q(:), p(:),jacQ(:,:), jacP(:,:)
+         real (kind=dblk),intent(out) :: qjac(:),pjac(:)
 
          integer (kind=intk) :: i,j
          !real (kind=dblk) :: qjt(18),pjt(18)
@@ -169,44 +169,100 @@ module coords
 
 
       ! Convert from Jacobi coordinates
+      ! Sparse routine is ~3.3 times faster than dense dgetrs
       subroutine apply_jacobi_inv(qjac,pjac,q,p,PjacQ,LUjacQ,PjacP,LUjacP)
-         real (kind=dblk) :: qjac(:),pjac(:),q(:),p(:),&
-                             LUjacQ(:,:), LUjacP(:,:)
-         integer (kind=intk) :: PjacQ(:), PjacP(:)
+         real (kind=dblk),intent(in):: qjac(:),pjac(:),LUjacQ(:,:), LUjacP(:,:)
+         integer (kind=intk),intent(in) :: PjacQ(:), PjacP(:)
+         real (kind=dblk),intent(out) :: q(:),p(:)
 
-         integer (kind=intk) :: info
+         !integer (kind=intk) :: info
 
-         ! TODO write sparse FW/BW subs routine
          q = qjac
-         call dgetrs('N',3*n_masses,1,LUjacQ,3*n_masses,PjacQ,q,3*n_masses,info)
+         !call dgetrs('N',3*n_masses,1,LUjacQ,3*n_masses,PjacQ,q,3*n_masses,info)
+         call apply_jacobi_invqp(qjac,q,PjacQ,LUjacQ)
          
          p = pjac
-         call dgetrs('N',3*n_masses,1,LUjacP,3*n_masses,PjacP,p,3*n_masses,info)
+         !call dgetrs('N',3*n_masses,1,LUjacP,3*n_masses,PjacP,p,3*n_masses,info)
+         call apply_jacobi_invqp(pjac,p,PjacP,LUjacP)
       
       end subroutine apply_jacobi_inv
 
       
-      ! Convert Qjac to Jacobi coordinates
-      ! used in symplectic.f90
-      subroutine apply_jacobi_invq(qjac,q,PjacQ,LUjacQ)
-         real (kind=dblk) :: qjac(:),q(:),&
-                             LUjacQ(:,:)
-         integer (kind=intk) :: PjacQ(:)
+      ! Convert Qjac from Jacobi coordinates
+      ! Sparse routine is ~3.3 times faster than dense dgetrs
+      pure subroutine apply_jacobi_invqp(qjac,q,PjacQ,LUjacQ)
+         real (kind=dblk), intent(in) :: qjac(:),LUjacQ(:,:)
+         integer (kind=intk), intent(in) :: PjacQ(:)
+         real (kind=dblk), intent(out) :: q(:)
 
-         integer (kind=intk) :: info
+         integer (kind=intk) :: i,j,ip
+         real (kind=dblk) :: temp
 
-         ! TODO write sparse FW/BW subs routine
+
          q = qjac
-         call dgetrs('N',3*n_masses,1,LUjacQ,3*n_masses,PjacQ,q,3*n_masses,info)
-         
+         ! Apply permutation vector to RHS
+         !call dlaswp(3*n_masses,qjac,3*n_masses,1,3*n_masses,PjacQ,1)
+         do i=1,3*n_masses
+            ip = PjacQ(i)
+            temp = q(i)
+            q(i) = q(ip)
+            q(ip) = temp
+         end do
+
+         ! Apply FW subs to system with LUjacQ/LUjacP
+         ! Dense
+         !do j=1,3*n_masses
+         !   ! it is assumed that L(j,j) = 1
+
+         !   do i=j+1,3*n_masses
+         !      q(i) = q(i) - LUjacQ(i,j)*q(j)
+         !   end do
+         !end do
+         ! Sparse
+         do j=0,n_masses-1
+            ! it is assumed that L(j,j) = 1
+
+            do i=j+1,n_masses-1
+               q(3*i+1) = q(3*i+1) - LUjacQ(3*i+1,3*j+1)*q(3*j+1)
+               q(3*i+2) = q(3*i+2) - LUjacQ(3*i+2,3*j+2)*q(3*j+2)
+               q(3*i+3) = q(3*i+3) - LUjacQ(3*i+3,3*j+3)*q(3*j+3)
+            end do
+         end do
+
+         ! Apply BW subs
+         ! Dense
+         !do j=3*n_masses,1,-1
+         !   ! we should never have a zero on the diagonal of LUjacQ/LUjacP
+
+         !   q(j) = q(j)/LUjacQ(j,j)
+         !   do i=j-1,1,-1
+         !      q(i) = q(i) - LUjacQ(i,j)*q(j)
+         !   end do
+         !end do
+         ! Sparse
+         do j=n_masses-1,0,-1
+            ! we should never have zeros on the diagonal
+
+            q(3*j+1) = q(3*j+1) / LUjacQ(3*j+1,3*j+1)
+            q(3*j+2) = q(3*j+2) / LUjacQ(3*j+2,3*j+2)
+            q(3*j+3) = q(3*j+3) / LUjacQ(3*j+3,3*j+3)
+
+            do i=j-1,0,-1
+               q(3*i+1) = q(3*i+1) - LUjacQ(3*i+1,3*j+1)*q(3*j+1)
+               q(3*i+2) = q(3*i+2) - LUjacQ(3*i+2,3*j+2)*q(3*j+2)
+               q(3*i+3) = q(3*i+3) - LUjacQ(3*i+3,3*j+3)*q(3*j+3)
+            end do
+         end do
       
-      end subroutine apply_jacobi_invq
+      end subroutine apply_jacobi_invqp
 
 
+      
       ! convert P to Jacobi coordinates (uses sparse mat-vec)
       ! used in symplectic.f90
-      subroutine apply_jacobip(p,pjac,jacP)
-         real (kind=dblk) :: p(:), pjac(:),jacP(:,:)
+      pure subroutine apply_jacobip(p,pjac,jacP)
+         real (kind=dblk), intent(in) :: p(:),jacP(:,:)
+         real (kind=dblk), intent(out) :: pjac(:)
 
          integer (kind=intk) :: i,j
          ! pjac <- jacP*p
@@ -239,8 +295,9 @@ module coords
       ! Apply qt = jacT*q
       ! jacT is a sum from Saha 1994, represented as mat-vec
       ! This is essentially sparse mat-vec
-      subroutine apply_jacT(q,qt,jacT)
-         real (kind=dblk) :: q(:),qt(:),jacT(:,:)
+      pure subroutine apply_jacT(q,qt,jacT)
+         real (kind=dblk), intent(in) :: q(:),jacT(:,:)
+         real (kind=dblk), intent(out) :: qt(:)
 
          integer (kind=intk) :: i,j
 

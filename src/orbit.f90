@@ -17,8 +17,8 @@ program orbit
    integer (kind=intk), parameter :: N_saves = 10
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
-   real (kind=dblk), parameter :: t1 = t0+10**5 ! JD=2430000.5
-   real (kind=dblk), parameter :: dt = 1.11111111111111_dblk ! time step
+   real (kind=dblk), parameter :: t1 = t0+10**9 ! JD=2430000.5
+   real (kind=dblk), parameter :: dt = 1.0_dblk ! time step
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/N_record_int)
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
    
@@ -44,7 +44,7 @@ program orbit
       symp_qimqjnrm(n_masses,n_masses),symp_ind_wrk1(3*n_masses),&
       symp_ind_wrk2(3*n_masses)
 
-   integer (kind=intk) :: i,j,save_counter
+   integer (kind=intk) :: i,j,save_counter,clock
    real (kind=dblk) :: ti
 
 
@@ -119,10 +119,20 @@ program orbit
    !   call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param,g_param_jac)
    !end if
 
+   !call apply_jacobi_invqp(Qjac_wrk,Q(:,1),PjacQ,LUjacQ)
 
-   do while (ti < t1)
+   !call tic(clock)
+   !do i=1,10**6
+   !   call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
+   !      PjacQ,LUjacQ,PjacP,LUjacP)
+   !end do
+   !call toc(clock)
+   !stop
 
-      do j=1,N_record_int
+   call tic(clock)
+   main: do while (ti < t1)
+
+      integrate: do j=1,N_record_int
         
          ! second-order SI method (with 0.5*dt from above and below)
          ! Do a full step of SI
@@ -136,7 +146,7 @@ program orbit
             kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
          
          ti = ti + dt;
-      end do
+      end do integrate
 
       ! Record state of system
       i=i+1; 
@@ -145,17 +155,20 @@ program orbit
       call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,i),P(:,i),&
          PjacQ,LUjacQ,PjacP,LUjacP)
 
-      ! TODO print percentage
-      
-      ! save data every N_save_int iterations of i
-      if (mod(i,N_save_int) == 0) then
-         call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,&
-            PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,&
-            g_param,g_param_jac)
+      if (mod(i,floor(dble(N_save_int)/100_dblk)) == 0) then
+         print *, "Percent complete: ", ti/t1*100
+         
+         ! save data every N_save_int iterations of i
+         if (mod(i,N_save_int) == 0) then
+            call save_data(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,&
+               PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,&
+               g_param,g_param_jac)
 
+         end if
       end if
 
-   end do
+   end do main
+   call toc(clock)
 
    ! Finish the integration with a half-step (0.5dt) of kepler
    call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt, kep_r,kep_v,kep_u,kep_a,&
@@ -170,6 +183,5 @@ program orbit
       PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,&
       g_param,g_param_jac)
 
-   print *, "Computations complete!"
-
+   print *, "Computation complete!"
 end program orbit

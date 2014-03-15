@@ -20,12 +20,12 @@ module symplectic
       integer (kind=intk) :: PjacQ(:)
 
 
-      integer (kind=intk) :: i,j
+     integer (kind=intk) :: i,j
       real (kind=dblk) :: temp(3), qhnrm(n_masses),qjacnrm(n_masses)
 
       ! Calculate the gradient of the potential for the "kick" to Pjac
       ! Convert Qjac_wrk from Jacobi
-      call apply_jacobi_invq(Qjac_wrk,Q_wrk,PjacQ,LUjacQ)
+      call apply_jacobi_invqp(Qjac_wrk,Q_wrk,PjacQ,LUjacQ)
 
 
       ! Direct terms
@@ -122,7 +122,6 @@ module symplectic
       
       interdvjac = interdvjac + ind_wrk1
 
-
       ! Apply symplectic transformation
       ! "Kick" Pjac
       Pjac_wrk = Pjac_wrk - tau*interdvjac
@@ -131,6 +130,5 @@ module symplectic
       Qjac_wrk(1:3) = Qjac_wrk(1:3) + tau*Pjac_wrk(1:3)/m_vec_jac(1)
 
    end subroutine symp_step
-
 
 end module symplectic

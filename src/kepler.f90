@@ -5,6 +5,8 @@ module kepler
    use utils
    use orbital_data
 
+   implicit none
+
    contains
 
    ! Initial value problem I from Danby

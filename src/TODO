@@ -1,31 +1,38 @@
 
 General
-Should cetain calculations be done in quad prec.?
+=======
+Should cetain calculations be done in quad prec.? cf Saha 1994
+Plot error in Hamiltonian
 
-coords.f90
+
+
+data/
+=====
+
+
+src/
+====
+src/coords.f90
    Test jacobi_inv (sparse)
    apply_jacobi_inv: write sparse FW/BW subs
    apply_jacobi_invq: sparse subs routine
-   apply_jacobiT: need jacT*stuff for something ;)
 
 
-kepler.f90
-   kepler is about 100 times faster than in matlab
+src/kepler.f90
 
 
-symplectic.f90
-   Test everything
+src/symplectic.f90
+   
 
-
-orbit.f90
+src/orbit.f90
    change dt to 1 (set to 1.1111111 to make matlab)
    increment ti by 0.5dt when I do 0.5dt kepler steps? 
    print proportion of computation complete to stdout
 
 
-orbital_data.f90
+src/orbital_data.f90
 
 
-utils.f90
+src/utils.f90
    Should I move debug flag somewhere else?
 
