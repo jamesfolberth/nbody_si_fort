@@ -17,7 +17,7 @@ program orbit
    integer (kind=intk), parameter :: N_saves = 10
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
-   real (kind=dblk), parameter :: t1 = t0+10**9 ! JD=2430000.5
+   real (kind=dblk), parameter :: t1 = t0+10**5 ! JD=2430000.5
    real (kind=dblk), parameter :: dt = 1.0_dblk ! time step
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/N_record_int)
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
@@ -155,8 +155,10 @@ program orbit
       call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,i),P(:,i),&
          PjacQ,LUjacQ,PjacP,LUjacP)
 
-      if (mod(i,floor(dble(N_save_int)/100_dblk)) == 0) then
-         print *, "Percent complete: ", ti/t1*100
+
+      if (((t1-t0)/dt > 10**7) .and. &
+         (mod(i,floor(dble(N_save_int)/100_dblk)) == 0)) then
+         print *, "Percent complete: ", ti/t1*100_dblk
          
          ! save data every N_save_int iterations of i
          if (mod(i,N_save_int) == 0) then

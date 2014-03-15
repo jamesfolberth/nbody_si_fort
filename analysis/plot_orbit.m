@@ -1,4 +1,4 @@
-
+% GNU Octave function to plot stuff
 function [] = plot_orbit(savefile,plot_type)
 
 if exist(savefile)
@@ -7,7 +7,7 @@ else
    error(sprintf('plot_stuff_orbit.m: data file %s not found',savefile));
 end
 
-
+% Plot relative error in Hamiltonian
 if strcmp(plot_type,'herr')
    %% Hamiltonian %%
    H = zeros(size(Pjac(1,:)));
@@ -33,6 +33,24 @@ if strcmp(plot_type,'herr')
    figure()
    Herrr = (H-H(1))/H(1);
    plot(t(1:end), Herrr(1:end))
-end
+
+% Plot orbital elements
+elseif strcmp(plot_type,'orb.h')
+   
+   plot_planet = 1;
+   vars = (3*(plot_planet)+1):(3*(plot_planet)+3);
+   orb = sv2e(Q(vars,:), P(vars,:)/m_vec(plot_planet+1), g_param);
+   rp = (orb.h).^2./g_param./(1+orb.e);
+   ra = (orb.h).^2./g_param./(1-orb.e);
+   a = 0.5*(rp+ra);
+   figure();
+   %plot(t, Q(vars(1), :));
+   %plot(t, a)
+   %plot(t, orb.i*180/pi)
+   %plot(t, orb.h)
+   %plot(t, orb.e)
+   plot(t,orb.e.*sin(orb.omega+orb.Omega))
+
+
 
 end 
