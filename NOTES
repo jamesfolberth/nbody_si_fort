@@ -6,6 +6,7 @@ data location
 
 executables assume that the data dir is ../data, relative to src/
 
+GNU Octave's load (since I built it with hdf5-openmpi) will accept an HDF5 data file
 
 
 compiling + linking

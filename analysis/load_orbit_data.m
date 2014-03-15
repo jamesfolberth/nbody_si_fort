@@ -1,5 +1,6 @@
 function [t,Q,P,Qjac,Pjac,jacQ,jacP,jacT,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param,g_param_jac] = load_orbit_data(savefile)
-% load the HDF5 file 'savefile', read the data, and output
+% load the HDF5 file 'savefile', read the data, and output for Matlab
+% GNU Octave's load will be able to read HDF5 files if Octave was built support for that (my Octave on Arch will do that)
 
 if exist(savefile)
    t = h5read(savefile, '/t');

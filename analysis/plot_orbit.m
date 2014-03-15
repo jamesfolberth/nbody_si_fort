@@ -2,7 +2,11 @@
 function [] = plot_orbit(savefile,plot_type)
 
 if exist(savefile)
-   [t,Q,P,Qjac,Pjac,jacQ,jacP,jacT,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param,g_param_jac] = load_orbit_data(savefile);
+   if exist('OCTAVE_VERSION') ~= 0
+      load(savefile);
+   else
+      [t,Q,P,Qjac,Pjac,jacQ,jacP,jacT,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param,g_param_jac] = load_orbit_data(savefile);
+   end
 else
    error(sprintf('plot_stuff_orbit.m: data file %s not found',savefile));
 end
@@ -49,7 +53,7 @@ elseif strcmp(plot_type,'orb.h')
    %plot(t, orb.i*180/pi)
    %plot(t, orb.h)
    %plot(t, orb.e)
-   plot(t,orb.e.*sin(orb.omega+orb.Omega))
+   %plot(t,orb.e.*sin(orb.omega+orb.Omega))
 
 
 

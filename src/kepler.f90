@@ -23,6 +23,12 @@ module kepler
 
       integer (kind=intk) :: i
       real (kind=dblk) :: bigR(3), bigV(3), temp(3*n_masses)
+
+      ! For inline kepeq2
+      integer (kind=dblk) :: ke_counter
+      real (kind=dblk) :: ke_ndt,ke_y,ke_sigma,ke_dx,ke_c,ke_s,ke_f,ke_fp,&
+         ke_fpp,ke_fppp
+
       !real (kind=dblk) :: r(n_masses),v(n_masses),u(n_masses),a(n_masses),&
       !   n(n_masses),EC(n_masses),ES(n_masses),e(n_masses),dE(n_masses),&
       !   dtv(n_masses), C(n_masses), S(n_masses),f(n_masses),g(n_masses),&
@@ -57,8 +63,56 @@ module kepler
 
       !dE = 0.0_dblk
       !dtv = 0.0_dblk
-      call kepeq2(dE, dtv, tau, e, n, EC, ES)
-      
+      !call kepeq2(dE, dtv, tau, e, n, EC, ES)
+
+      ! ``Inline'' solve Kepler equation (kepeq2)
+      ! This gives about 2% speed-up
+      do i=2,n_masses ! Don't do the sun
+         dtv(i) = tau - floor(n(i)*tau/(2*pi))*2*pi/n(i)
+         ke_ndt = n(i)*dtv(i)
+
+         if (e(i) < 0.1_dblk) then
+            dE(i) = ke_ndt
+         else
+            ke_y = ke_ndt - ES(i)
+            ke_sigma = sign(1.0_dblk,ES(i)*dcos(ke_y)+EC(i)*dsin(ke_y))
+            dE(i) = ke_y + 0.85_dblk*ke_sigma*e(i) - ES(i)
+         end if
+
+         ke_dx = 1.0_dblk
+         ke_counter = 0
+         do while (dabs(ke_dx) > 10.0E-14_dblk )
+            if (debug) then
+               if (ke_counter >= 10) then
+                  exit
+               end if
+            end if
+            ke_c = dcos(dE(i)); ke_s = dsin(dE(i));
+            ! Halley-type quartic method; Danby 6.6.7
+            ke_f = dE(i) - EC(i)*ke_s+ES(i)*(1.0_dblk-ke_c)-ke_ndt
+            ke_fp = 1.0_dblk - EC(i)*ke_c+ES(i)*ke_s
+            ke_fpp = EC(i)*ke_s+ES(i)*ke_c
+            ke_fppp = EC(i)*ke_c-ES(i)*ke_s
+            ke_dx = -ke_f/ke_fp
+            ke_dx = -ke_f/(ke_fp+ke_dx*ke_fpp/2.0_dblk)
+            ke_dx = -ke_f/(ke_fp+ke_dx*ke_fpp/2.0_dblk+ke_dx*ke_dx&
+               *ke_fppp/6.0_dblk)
+            dE(i) = dE(i) + ke_dx
+            if (debug) ke_counter = ke_counter + 1
+         end do
+
+         if (debug) then
+            if (ke_counter >= 10) then 
+               print *, "error: kepler.f90: kepeq2: Took too long in kepeq2"
+               stop
+            end if
+         end if
+
+         dE(i) = mod(dE(i), 2*pi)
+
+      end do
+
+
       C = dcos(dE); S = dsin(dE);
 
       ! Lagrange f,g functions
