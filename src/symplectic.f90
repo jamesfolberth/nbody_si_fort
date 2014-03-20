@@ -12,9 +12,9 @@ module symplectic
 
    ! Driver routine for symplectic integration of interaction terms
    subroutine symp_step(Qjac_wrk,Pjac_wrk,tau,interdv,interdvjac,Q_wrk,qimqj,&
-         qimqjnrm,jacP,PjacQ,LUjacQ,jacT,ind_wrk1,ind_wrk2,m_vec,m_vec_jac,g_const)
+         qimqjnrm,jacQ,PjacQ,LUjacQ,jacT,ind_wrk1,ind_wrk2,m_vec,m_vec_jac,g_const)
       real (kind=dblk), intent(inout) :: Qjac_wrk(:),Pjac_wrk(:),interdv(:),&
-         interdvjac(:),Q_wrk(:),qimqj(:,:),qimqjnrm(:,:),jacP(:,:),&
+         interdvjac(:),Q_wrk(:),qimqj(:,:),qimqjnrm(:,:),jacQ(:,:),&
          LUjacQ(:,:),jacT(:,:), ind_wrk1(:),ind_wrk2(:)
       real (kind=dblk), intent(in) :: tau,m_vec(:),m_vec_jac(:),g_const
       integer (kind=intk) :: PjacQ(:)
@@ -46,7 +46,8 @@ module symplectic
       end do
       !call print_array(qimqj)
       !call print_array(qimqjnrm)
- 
+
+
       ! find dv_i/dt from Saha 1994
       ! first entry
       do i=2,n_masses-1
@@ -91,9 +92,9 @@ module symplectic
       do i=1,n_masses-1
          interdv(3*i+1:3*i+3) = interdv(3*i+1:3*i+3) * m_vec(i+1) 
       end do
-      ! interdv is now a `generalized' force, which transforms to Jacobi
-      ! coordinates like momentum
-      call apply_jacobip(interdv,interdvjac,jacP)
+
+      ! Transform to jacobi coordinates (tanget vectors transform with jacQ)
+      call apply_jacobiqp(interdv,interdvjac,jacQ)
       
       !call print_vector(interdvjac)
 

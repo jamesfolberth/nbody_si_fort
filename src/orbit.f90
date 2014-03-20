@@ -69,7 +69,6 @@ program orbit
    call apply_jacobi(Q(:,1),P(:,1),Qjac_wrk,Pjac_wrk,jacQ,jacP)
    Qjac(:,1) = Qjac_wrk; Pjac(:,1) = Pjac_wrk;
 
-  
    ! Save data initially (useful for debugging stuff)
    if (debug) then
       call save_orbit(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,g_const,g_param,g_param_jac)
@@ -98,7 +97,7 @@ program orbit
          ! second-order SI method (with 0.5*dt from above and below)
          ! Do a full step of SI
          call symp_step(Qjac_wrk,Pjac_wrk,dt,symp_interdv,symp_interdvjac,&
-            symp_Q_wrk,symp_qimqj,symp_qimqjnrm,jacP,PjacQ,LUjacQ,jacT,&
+            symp_Q_wrk,symp_qimqj,symp_qimqjnrm,jacQ,PjacQ,LUjacQ,jacT,&
             symp_ind_wrk1,symp_ind_wrk2,m_vec,m_vec_jac,g_const)
 
          ! Do full step of kepler

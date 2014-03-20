@@ -258,9 +258,9 @@ module coords
 
 
       
-      ! convert P to Jacobi coordinates (uses sparse mat-vec)
+      ! convert Q or P to Jacobi coordinates (uses sparse mat-vec)
       ! used in symplectic.f90
-      pure subroutine apply_jacobip(p,pjac,jacP)
+      pure subroutine apply_jacobiqp(p,pjac,jacP)
          real (kind=dblk), intent(in) :: p(:),jacP(:,:)
          real (kind=dblk), intent(out) :: pjac(:)
 
@@ -289,7 +289,7 @@ module coords
             end do
          end do
 
-      end subroutine apply_jacobip
+      end subroutine apply_jacobiqp
 
 
       ! Apply qt = jacT*q

@@ -48,11 +48,9 @@ module kepler
 
       a = 1.0_dblk / (2.0_dblk / r - v*v / g_param_jac)
 
-      if (debug) then
-         if (any(a(2:n_masses) <= 0)) then
-            print *, "error: kepler.f90: kepler_step: at least one semi-major axis went negative"
-            stop
-         end if
+      if (any(a(2:n_masses) <= 0)) then
+         print *, "error: kepler.f90: kepler_step: at least one semi-major axis went negative"
+         stop
       end if
 
       n = sqrt(g_param_jac / (a * a * a))
