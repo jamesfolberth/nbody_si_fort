@@ -16,7 +16,7 @@ LDLIBS= -lsatlas
 LDADDPATH= -Wl,-rpath=$(HDF5_HOME)/lib # add this dir to the runtime search path for ld
 
 
-all: orbit lyapunov
+all: lyapunov
 
 # Modules
 coords.o: coords.f90
@@ -38,12 +38,12 @@ utils.o: utils.f90
 orbit: orbit.f90 coords.o kepler.o orbital_data.o symplectic.o utils.o
 	$(FORT) -c orbit.f90 $(FORTOPTS) $(INCHDF)
 	$(FORT) -flto -o orbit $(FORTOPTS) $(LIBHDF) $(LDLIBS) $(LDADDPATH) utils.o orbital_data.o coords.o kepler.o symplectic.o orbit.o 
-	./orbit
+	nice -n0 ./orbit
 
 lyapunov: lyapunov.f90 coords.o kepler.o orbital_data.o symplectic.o utils.o
 	$(FORT) -c lyapunov.f90 $(FORTOPTS) $(INCHDF)
 	$(FORT) -flto -o lyapunov $(FORTOPTS) $(LIBHDF) $(LDLIBS) $(LDADDPATH) utils.o orbital_data.o coords.o kepler.o symplectic.o lyapunov.o 
-	./lyapunov
+	nice -n0 ./lyapunov
 
 
 

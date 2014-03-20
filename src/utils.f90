@@ -3,6 +3,7 @@
 module utils
    
    use HDF5
+
    implicit none
 
    integer, parameter :: intk = kind(1) ! get kind numbers of various types
@@ -46,6 +47,27 @@ module utils
       end do
       linspace(N)=x_end
    end function linspace
+   ! }}}
+
+
+   !!!!!!!!!!!!!!!!!!!!!
+   ! Phase Space Dist. !
+   !!!!!!!!!!!!!!!!!!!!!
+   ! {{{
+   function ps_dist(p1,q1,p2,q2,i,n_masses)
+      integer (kind=intk) :: i ! planet start index
+      integer (kind=intk), intent(in) :: n_masses
+      real (kind=dblk), intent(in) :: p1(3*n_masses),q1(3*n_masses),&
+         p2(3*n_masses),q2(3*n_masses)
+      real (kind=dblk) :: ps_dist
+     
+      ps_dist = 0_dblk
+      ps_dist = (p1(i)-p2(i))**2+(p1(i+1)-p2(i+1))**2+(p1(i+2)-p2(i+2))**2&
+            +(q1(i)-q2(i))**2+(q1(i+1)-q2(i+1))**2+(q1(i+2)-q2(i+2))**2
+
+      ps_dist = dsqrt(ps_dist)
+
+   end function ps_dist
    ! }}}
 
 
@@ -160,6 +182,53 @@ module utils
       call h5close_f(h5error)
 
    end subroutine save_orbit
+
+
+   subroutine save_orbit_lyapunov(savefile,t,Q,P,Qjac,Pjac,Q_tst,P_tst,&
+         Qjac_tst,Pjac_tst,jacQ,jacP,jacT,PjacQ,LUjacQ,PjacP,LUjacP,&
+         m_vec,m_vec_jac,g_const,g_param,g_param_jac,ps_dists)
+      character (len=256) :: savefile
+      real (kind=dblk) :: t(:),Q(:,:),P(:,:),Qjac(:,:),Pjac(:,:),&
+                          Q_tst(:,:),P_tst(:,:),Qjac_tst(:,:),Pjac_tst(:,:),&
+                          jacQ(:,:),jacP(:,:),jacT(:,:),&
+                          LUjacQ(:,:),LUjacP(:,:),&
+                          m_vec(:),m_vec_jac(:),&
+                          g_const,g_param,g_param_jac(:),ps_dists(:)
+      integer (kind=intk) :: PjacQ(:),PjacP(:)
+
+      integer (kind=intk) :: h5error, file_id
+
+      call h5open_f(h5error)
+      call h5fcreate_f(savefile, H5F_ACC_TRUNC_F, file_id, h5error)
+
+      ! start writing data
+      call write_dset(file_id, t, "t")
+      !call write_dset(file_id, Q, "Q")
+      !call write_dset(file_id, P, "P")
+      !call write_dset(file_id, Qjac, "Qjac")
+      !call write_dset(file_id, Pjac, "Pjac")
+      !call write_dset(file_id, Q_tst, "Q_tst")
+      !call write_dset(file_id, P_tst, "P_tst")
+      !call write_dset(file_id, Qjac_tst, "Qjac_tst")
+      !call write_dset(file_id, Pjac_tst, "Pjac_tst")
+      call write_dset(file_id, jacQ, "jacQ")
+      call write_dset(file_id, jacP, "jacP")
+      call write_dset(file_id, jacT, "jacT")
+      call write_dset(file_id, PjacQ, "PjacQ")
+      call write_dset(file_id, LUjacQ, "LUjacQ")
+      call write_dset(file_id, PjacP, "PjacP")
+      call write_dset(file_id, LUjacP, "LUjacP")
+      call write_dset(file_id, m_vec, "m_vec")
+      call write_dset(file_id, m_vec_jac, "m_vec_jac")
+      call write_dset(file_id, g_const, "g_const")
+      call write_dset(file_id, g_param, "g_param")
+      call write_dset(file_id, g_param_jac, "g_param_jac")
+      call write_dset(file_id, ps_dists, "ps_dists")
+    
+      call h5fclose_f(file_id,h5error)
+      call h5close_f(h5error)
+
+   end subroutine save_orbit_lyapunov
 
   
    ! These routines make the dspace, dset, and write data
