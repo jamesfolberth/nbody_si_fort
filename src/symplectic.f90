@@ -89,18 +89,21 @@ module symplectic
       !call print_vector(interdv)
      
       ! convert to Jacobi coords
+      !do i=1,n_masses-1
+      !   interdv(3*i+1:3*i+3) = interdv(3*i+1:3*i+3) * m_vec(i+1) 
+      !end do
+
+      call apply_jacobiqp(interdv,interdvjac,jacQ)
       do i=1,n_masses-1
-         interdv(3*i+1:3*i+3) = interdv(3*i+1:3*i+3) * m_vec(i+1) 
+         interdvjac(3*i+1:3*i+3) = interdvjac(3*i+1:3*i+3) * m_vec_jac(i+1) 
       end do
 
-      ! Transform to jacobi coordinates (tanget vectors transform with jacQ)
-      call apply_jacobiqp(interdv,interdvjac,jacQ)
-      
+     
       !call print_vector(interdvjac)
 
 
       ! Indirect terms
-      ! Saha 1994; Encke's method for r'/r'^3 - r/r^3
+      ! Saha 1994; Encke's method for a better way of doing r'/r'^3 - r/r^3
       temp = Q_wrk(1:3) ! Sun's position (we're moving to helio-centric)
       do i=1,n_masses-1
          ind_wrk1(3*i+1:3*i+3) = Q_wrk(3*i+1:3*i+3) - temp ! heliocentric

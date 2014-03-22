@@ -1,2 +1,4 @@
 
 Executables are (generally) left in src/ directory, so the path to the data dir should be ../data/
+
+When you want to call a F77 library routine from F90, you _need_ to make an interface for the routine

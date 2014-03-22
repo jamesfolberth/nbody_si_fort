@@ -10,6 +10,10 @@ orbit: force
 lyapunov: force
 	make -C src lyapunov
 
+# Build odepack.so (F77)
+odepack:
+	make -C odepack
+
 test_dset:
 	make -C src h5_crtdat
 	make -C src run_h5_crtdat

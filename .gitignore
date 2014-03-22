@@ -6,7 +6,10 @@ h5_crtdat
 *.mod
 *.h5
 *.o
+*.so
+*.out
 
 hdf5/
 matlab/
 data/
+

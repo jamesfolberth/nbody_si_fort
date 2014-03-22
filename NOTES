@@ -3,7 +3,6 @@
 
 data location
 =============
-
 executables assume that the data dir is ../data, relative to src/
 
 GNU Octave's load (since I built it with hdf5-openmpi) will accept an HDF5 data file
@@ -11,9 +10,15 @@ GNU Octave's load (since I built it with hdf5-openmpi) will accept an HDF5 data 
 
 compiling + linking
 ===================
-
 Use ldd exec_file to determine if the proper dyn. libs are going to load at runtime
 
 Use -Wl,-rpath=/dir/to/add to add the dir to the ld runtime search path (alternative to export LD_LIBRARY_PATH=/dir/to/add)
 
 Do this with absolute path names
+
+
+LSODE
+=====
+Adams multistep - method flag mf=10, no jacobian used
+I can give it the work arrays and just ask it to give me the value at TOUT (which should be all I need).
+New system at every time step, so ISTATE = 1

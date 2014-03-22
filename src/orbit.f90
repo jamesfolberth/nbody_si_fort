@@ -14,10 +14,10 @@ program orbit
    ! run config parameters
    character (len=256), parameter :: savefile='../data/orbit.h5'
    integer (kind=intk), parameter :: N_record_int = 1000 ! record state every N_record_int time steps
-   integer (kind=intk), parameter :: N_saves = 10
+   integer (kind=intk), parameter :: N_saves = 20
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
-   real (kind=dblk), parameter :: t1 = t0+10**6 ! JD=2430000.5
+   real (kind=dblk), parameter :: t1 = t0+10**9 ! JD=2430000.5
    real (kind=dblk), parameter :: dt = 1.0_dblk ! time step
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/N_record_int)
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))

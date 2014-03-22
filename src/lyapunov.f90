@@ -10,19 +10,54 @@ program lyapunov
 
    implicit none
 
+   interface
+      subroutine dlsode(f,neq,y,t,tout,itol,rtol,atol,itask,istate,iopt,rwork,&
+            lrw,iwork,liw,jac,mf)
+         implicit none
+         external :: f,jac
+         integer, intent(in) :: itol,itask,iopt,lrw,liw,mf
+         integer, intent(inout) :: istate
+         integer, intent(in),dimension(*) :: neq
+         integer, intent(inout) :: iwork(liw)
+         double precision, intent(in) :: tout
+         double precision, intent(inout) :: t
+         double precision, intent(inout),dimension(*) :: y,rwork,rtol,atol
+      end subroutine dlsode
+   end interface
+
 
    ! run config parameters
    character (len=256), parameter :: savefile='../data/lyapunov.h5'
    integer (kind=intk), parameter :: N_record_int = 100 ! record state every N_record_int time steps
-   integer (kind=intk), parameter :: N_saves = 1000
+   integer (kind=intk), parameter :: N_saves = 100
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
-   real (kind=dblk), parameter :: t1 = t0+10**9 ! JD=2430000.5
+   real (kind=dblk), parameter :: t1 = t0+10**5 ! JD=2430000.5
    real (kind=dblk), parameter :: dt = 1.0_dblk ! time step
    real (kind=dblk), parameter :: traj_pert = 1.0E-14_dblk
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/N_record_int)
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
    integer (kind=intk) :: N_iterations
+
+
+   ! DLSODE setup
+   external :: lin_func, lin_jac
+   integer (kind=intk) :: dlsode_neq(1) = (/6*n_masses/)
+   integer (kind=intk) :: dlsode_itol = 1
+   real (kind=dblk) :: dlsode_rtol(1)=(/0.0_dblk/)
+   real (kind=dblk) :: dlsode_atol(1)=(/1E-6_dblk/)
+   integer (kind=intk) :: dlsode_itask = 1
+   integer (kind=intk) :: dlsode_istate = 1
+   integer (kind=intk) :: dlsode_iopt = 0
+   real (kind=dblk) :: dlsode_rwork(20+16*6*n_masses)
+   integer (kind=intk) :: dlsode_lrw = 20+16*6*n_masses
+   integer (kind=intk) :: dlsode_iwork(20)
+   integer (kind=intk) :: dlsode_liw = 20
+   integer (kind=intk) :: dlsode_mf = 10
+
+   real (kind=dblk) :: dlsode_t
+   real (kind=dblk) :: qp_lin(2*6*n_masses+1)
+
 
    ! variables
    real (kind=dblk), allocatable :: t(:)
@@ -85,9 +120,11 @@ program lyapunov
    call WH_initial_data(P,Q)
    call WH_initial_data(P_tst,Q_tst)
 
+   
    ! Perturb the initial data for the test trajectory (but only for pluto)
    Q_tst(4,1) = Q_tst(4,1) + traj_pert
 
+   
    ! set up jacobi coordinate functions
    call jacobi_setup(jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,eta,m_vec_jac,g_param_jac)
 
@@ -100,7 +137,6 @@ program lyapunov
    Qjac_tst(:,1) = Qjac_tst_wrk; Pjac_tst(:,1) = Pjac_tst_wrk;
 
    
-
    ! main loop
    if (floor((t1-t0)/dt/N_record_int) /= &
        ceiling((t1-t0)/dt/N_record_int)) then
@@ -125,9 +161,24 @@ program lyapunov
    call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt,&
       kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
       kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
-   call kepler_step(Qjac_tst_wrk, Pjac_tst_wrk, 0.5_dblk*dt,&
-      kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
-      kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
+   !call kepler_step(Qjac_tst_wrk, Pjac_tst_wrk, 0.5_dblk*dt,&
+   !   kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
+   !   kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
+  
+
+   ! Testing DLSODE
+   qp_lin = 1.0_dblk
+   dlsode_t = 0.0_dblk
+   call dlsode(lin_func,dlsode_neq,qp_lin,dlsode_t,1.0_dblk,&
+      dlsode_itol,&
+      dlsode_rtol,dlsode_atol,dlsode_itask,dlsode_istate,dlsode_iopt,&
+      dlsode_rwork,dlsode_lrw,dlsode_iwork,dlsode_liw,lin_jac,dlsode_mf)
+
+   print *,dlsode_istate ! istate=2 is success
+   call print_vector(qp_lin)
+     
+
+   stop
 
 
    call tic(clock)
@@ -140,18 +191,18 @@ program lyapunov
          call symp_step(Qjac_wrk,Pjac_wrk,dt,symp_interdv,&
             symp_interdvjac,symp_Q_wrk,symp_qimqj,symp_qimqjnrm,jacP,PjacQ,&
             LUjacQ,jacT,symp_ind_wrk1,symp_ind_wrk2,m_vec,m_vec_jac,g_const)
-         call symp_step(Qjac_tst_wrk,Pjac_tst_wrk,dt,symp_interdv,&
-            symp_interdvjac,symp_Q_wrk,symp_qimqj,symp_qimqjnrm,jacP,PjacQ,&
-            LUjacQ,jacT,symp_ind_wrk1,symp_ind_wrk2,m_vec,m_vec_jac,g_const)
+         !call symp_step(Qjac_tst_wrk,Pjac_tst_wrk,dt,symp_interdv,&
+         !   symp_interdvjac,symp_Q_wrk,symp_qimqj,symp_qimqjnrm,jacP,PjacQ,&
+         !   LUjacQ,jacT,symp_ind_wrk1,symp_ind_wrk2,m_vec,m_vec_jac,g_const)
 
 
          ! Do full step of kepler
          call kepler_step(Qjac_wrk, Pjac_wrk,dt,&
             kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
             kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
-         call kepler_step(Qjac_tst_wrk, Pjac_tst_wrk,dt,&
-            kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
-            kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
+         !call kepler_step(Qjac_tst_wrk, Pjac_tst_wrk,dt,&
+         !   kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
+         !   kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
 
         
          ti = ti + dt
@@ -187,8 +238,8 @@ program lyapunov
 !      Qjac_tst(:,1) = Qjac_tst_wrk; Pjac_tst(:,1) = Pjac_tst_wrk;
       call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
          PjacQ,LUjacQ,PjacP,LUjacP)
-      call apply_jacobi_inv(Qjac_tst_wrk,Pjac_tst_wrk,Q_tst(:,1),P_tst(:,1),&
-         PjacQ,LUjacQ,PjacP,LUjacP)
+      !call apply_jacobi_inv(Qjac_tst_wrk,Pjac_tst_wrk,Q_tst(:,1),P_tst(:,1),&
+      !   PjacQ,LUjacQ,PjacP,LUjacP)
 !      
 !      ! ps_dist_rat moving averaged over N_record_int iterations
 !      !ps_dist_rat(i) = ps_dist_rat_avg
@@ -216,15 +267,15 @@ program lyapunov
 !      Qjac_tst(:,1) = Qjac_tst_wrk; Pjac_tst(:,1) = Pjac_tst_wrk;
 
 
-      dxnrm = ps_dist(P_tst(:,1),Q_tst(:,1),P(:,1),Q(:,1),&
-         4,n_masses)
-      ps_dist_rat(i) = dxnrm
+      !dxnrm = ps_dist(P_tst(:,1),Q_tst(:,1),P(:,1),Q(:,1),&
+      !   4,n_masses)
+      !ps_dist_rat(i) = dxnrm
 
 
       if ((N_iterations >= 10**7) .and. &
          (mod(i,floor(dble(N_save_int)/100_dblk)) == 0)) then
          print *, "Percent complete: ", ti/t1*100_dblk
-         print *, dxnrm
+         !print *, dxnrm
 
          ! save data every N_save_int iterations of i
          if (mod(i,N_save_int) == 0) then
@@ -242,9 +293,9 @@ program lyapunov
    call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt,&
       kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
       kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
-   call kepler_step(Qjac_tst_wrk, Pjac_tst_wrk, 0.5_dblk*dt,&
-      kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
-      kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
+   !call kepler_step(Qjac_tst_wrk, Pjac_tst_wrk, 0.5_dblk*dt,&
+   !   kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
+   !   kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
 
 
    !Qjac(:,i) = Qjac_wrk; Pjac(:,i) = Pjac_wrk;
@@ -257,8 +308,8 @@ program lyapunov
    Qjac_tst(:,1) = Qjac_tst_wrk; Pjac_tst(:,1) = Pjac_tst_wrk;
    call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
       PjacQ,LUjacQ,PjacP,LUjacP)
-   call apply_jacobi_inv(Qjac_tst_wrk,Pjac_tst_wrk,Q_tst(:,1),P_tst(:,1),&
-      PjacQ,LUjacQ,PjacP,LUjacP)
+   !call apply_jacobi_inv(Qjac_tst_wrk,Pjac_tst_wrk,Q_tst(:,1),P_tst(:,1),&
+   !   PjacQ,LUjacQ,PjacP,LUjacP)
 
 
    call save_orbit_lyapunov(savefile,t,Q,P,Qjac,Pjac,Q_tst,P_tst,&
@@ -266,4 +317,30 @@ program lyapunov
       m_vec,m_vec_jac,g_const,g_param,g_param_jac,ps_dist_rat)
  
    print *, "Computation complete!"
+
+
+
 end program lyapunov
+
+
+! Linearization 
+subroutine lin_func(neq,t,y,ydot)
+   integer (kind=4) :: neq
+   real (kind=8) :: t,y(neq),ydot(neq)
+
+   integer (kind=4) :: i
+   ! y and ydot are ordered as (Q P)^T
+  
+   ydot = -1.0*y
+
+end subroutine lin_func
+
+! Jacobian for lin_func; shouldn't be called for dlsode_mf=10
+subroutine lin_jac(neq,t,y,ml,mu,pd,nrowpd)
+   integer (kind=4) :: neq,ml,mu,nrowpd
+   real (kind=8) :: t,y(neq),pd(nrowpd,neq)
+
+   neq = 0;ml=0;mu=0;nrowpd=0;
+   t=0d0;y=0d0;pd=0d0;
+   print *, "calling lin_jac"
+end subroutine
