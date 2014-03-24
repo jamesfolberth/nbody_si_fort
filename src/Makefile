@@ -21,7 +21,7 @@ ODE_HOME=$(PWD)/../odepack
 ODELIBS= -L$(ODE_HOME) -lodepack
 ODEADDPATH= -Wl,-rpath=$(ODE_HOME)
 
-all: lyapunov
+all: orbit lyapunov orbit_lin_test
 
 # Modules
 coords.o: coords.f90 utils.o orbital_data.o
@@ -43,7 +43,7 @@ utils.o: utils.f90
 orbit: orbit.f90 coords.o kepler.o orbital_data.o symplectic.o utils.o
 	$(FORT) -c orbit.f90 $(FORTOPTS) $(INCHDF)
 	$(FORT) -flto -o orbit $(FORTOPTS) $(LIBHDF) $(LDLIBS) $(LDADDPATH) utils.o orbital_data.o coords.o kepler.o symplectic.o orbit.o 
-	nice -n0 ./orbit
+	#nice -n0 ./orbit
 
 lyapunov: lyapunov.f90 coords.o kepler.o orbital_data.o symplectic.o utils.o force
 	$(FORT) -c lyapunov.f90 $(FORTOPTS) $(INCHDF)
@@ -52,6 +52,12 @@ lyapunov: lyapunov.f90 coords.o kepler.o orbital_data.o symplectic.o utils.o for
 		utils.o orbital_data.o coords.o kepler.o symplectic.o lyapunov.o 
 	nice -n0 ./lyapunov
 
+orbit_lin_test: orbit_lin_test.f90 coords.o kepler.o orbital_data.o symplectic.o utils.o
+	$(FORT) -c orbit_lin_test.f90 $(FORTOPTS) $(INCHDF)
+	$(FORT) -flto -o orbit_lin_test $(FORTOPTS) $(LIBHDF) $(LDLIBS) \
+		$(LDADDPATH) $(ODELIBS) $(ODEADDPATH) \
+		utils.o orbital_data.o coords.o kepler.o symplectic.o orbit_lin_test.o 
+	#nice -n0 ./orbit_lin_test
 
 
 

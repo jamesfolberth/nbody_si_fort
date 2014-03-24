@@ -2,6 +2,7 @@
 orbit
 lyapunov
 h5_crtdat
+orbit_lin_test
 
 *.mod
 *.h5
@@ -11,5 +12,6 @@ h5_crtdat
 
 hdf5/
 matlab/
+old_matlab_nbody/
 data/
 

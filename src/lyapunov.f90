@@ -10,6 +10,7 @@ program lyapunov
 
    implicit none
 
+   ! Interface for F77 DLSODE
    interface
       subroutine dlsode(f,neq,y,t,tout,itol,rtol,atol,itask,istate,iopt,rwork,&
             lrw,iwork,liw,jac,mf)
@@ -28,13 +29,13 @@ program lyapunov
 
    ! run config parameters
    character (len=256), parameter :: savefile='../data/lyapunov.h5'
-   integer (kind=intk), parameter :: N_record_int = 100 ! record state every N_record_int time steps
+   integer (kind=intk), parameter :: N_record_int = 1000 ! record state every N_record_int time steps
    integer (kind=intk), parameter :: N_saves = 100
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
    real (kind=dblk), parameter :: t1 = t0+10**5 ! JD=2430000.5
    real (kind=dblk), parameter :: dt = 1.0_dblk ! time step
-   real (kind=dblk), parameter :: traj_pert = 1.0E-14_dblk
+   real (kind=dblk), parameter :: traj_pert = 1.0E-4_dblk
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/N_record_int)
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
    integer (kind=intk) :: N_iterations
@@ -56,7 +57,12 @@ program lyapunov
    integer (kind=intk) :: dlsode_mf = 10
 
    real (kind=dblk) :: dlsode_t
-   real (kind=dblk) :: qp_lin(2*6*n_masses+1)
+   real (kind=dblk) :: dqp_lin(2*6*n_masses+n_masses+2)
+   real (kind=dblk) :: u_lin(2*6*n_masses+n_masses+2)
+   real (kind=dblk) :: ydot(6*n_masses)
+   ! dqp_lin storage
+   ! [ dq dp | q_0 p_0 m_vec g_const build_d2Hdq2_flag ]^T
+   !    neq  | other variables
 
 
    ! variables
@@ -108,35 +114,52 @@ program lyapunov
    !allocate(Pjac_tst(3*n_masses, N_records), Qjac_tst(3*n_masses, N_records))
    allocate(P(3*n_masses,1), Q(3*n_masses,1))
    allocate(Pjac(3*n_masses,1), Qjac(3*n_masses,1))
-   allocate(P_tst(3*n_masses,1), Q_tst(3*n_masses,1))
-   allocate(Pjac_tst(3*n_masses,1), Qjac_tst(3*n_masses,1))
+   !allocate(P_tst(3*n_masses,1), Q_tst(3*n_masses,1))
+   !allocate(Pjac_tst(3*n_masses,1), Qjac_tst(3*n_masses,1))
 
 
-   P=0; Q=0; Pjac=0; Qjac=0;
-   P_tst=0; Q_tst=0; Pjac_tst=0; Qjac_tst=0;
+   P=0.0_dblk; Q=0.0_dblk; Pjac=0.0_dblk; Qjac=0.0_dblk;
+   !P_tst=0; Q_tst=0; Pjac_tst=0; Qjac_tst=0;
 
 
    ! Set the initial conditions
    call WH_initial_data(P,Q)
-   call WH_initial_data(P_tst,Q_tst)
+   !call WH_initial_data(P_tst,Q_tst)
 
    
    ! Perturb the initial data for the test trajectory (but only for pluto)
-   Q_tst(4,1) = Q_tst(4,1) + traj_pert
+   !Q_tst(4,1) = Q_tst(4,1) + traj_pert
 
    
    ! set up jacobi coordinate functions
    call jacobi_setup(jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,eta,m_vec_jac,g_param_jac)
 
    Q_wrk = Q(:,1); P_wrk = P(:,1);
-   Q_tst_wrk = Q_tst(:,1); P_tst_wrk = P_tst(:,1);
+   !Q_tst_wrk = Q_tst(:,1); P_tst_wrk = P_tst(:,1);
 
    call apply_jacobi(Q(:,1),P(:,1),Qjac_wrk,Pjac_wrk,jacQ,jacP)
    Qjac(:,1) = Qjac_wrk; Pjac(:,1) = Pjac_wrk;
-   call apply_jacobi(Q_tst(:,1),P_tst(:,1),Qjac_tst_wrk,Pjac_tst_wrk,jacQ,jacP)
-   Qjac_tst(:,1) = Qjac_tst_wrk; Pjac_tst(:,1) = Pjac_tst_wrk;
+   !call apply_jacobi(Q_tst(:,1),P_tst(:,1),Qjac_tst_wrk,Pjac_tst_wrk,jacQ,jacP)
+   !Qjac_tst(:,1) = Qjac_tst_wrk; Pjac_tst(:,1) = Pjac_tst_wrk;
 
-   
+  
+
+   ! Set up for phase space distances (variational method)  
+   !ps_dist_rat(1) = ps_dist(P(:,1),Q(:,1),P_tst(:,1),Q_tst(:,1),&
+   !   4,n_masses) 
+
+   dqp_lin = 0.0_dblk
+   dqp_lin(4) = traj_pert
+   dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses)/norm2(dqp_lin(1:6*n_masses))
+
+   dqp_lin(37:54) = Q_wrk
+   dqp_lin(55:72) = P_wrk
+   dqp_lin(73:78) = m_vec
+   dqp_lin(79) = g_const
+   dqp_lin(80) = -1.0_dblk
+   dlsode_t = 0.0_dblk
+
+
    ! main loop
    if (floor((t1-t0)/dt/N_record_int) /= &
        ceiling((t1-t0)/dt/N_record_int)) then
@@ -147,130 +170,79 @@ program lyapunov
    print *,"Num iterations = ", dble(N_iterations)
 
 
-   ! Set up for phase space distances (variational method)  
-   ps_dist_rat(1) = ps_dist(P(:,1),Q(:,1),P_tst(:,1),Q_tst(:,1),&
-      4,n_masses) 
+   ! Intgrate dqp
+   dqp_lin(80) = -1.0_dblk
+   dlsode_t = 0.0_dblk
+   dlsode_istate=1
+
+   call dlsode(lin_func,dlsode_neq,dqp_lin,dlsode_t,0.5_dblk*dt,&
+      dlsode_itol,dlsode_rtol,dlsode_atol,dlsode_itask,dlsode_istate,&
+      dlsode_iopt,dlsode_rwork,dlsode_lrw,dlsode_iwork,dlsode_liw,&
+      lin_jac,dlsode_mf)
+
+   !print *,dlsode_istate ! istate=2 is success
+   !call print_vector(dqp_lin(1:36))
 
 
    i = 0
    iter = 1
    ti = t0
-   
+ 
    ! Do half a step of kepler
    ! TODO should ti also be moved forward by 0.5dt?
    call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt,&
       kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
       kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
-   !call kepler_step(Qjac_tst_wrk, Pjac_tst_wrk, 0.5_dblk*dt,&
-   !   kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
-   !   kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
-  
 
-   ! Testing DLSODE
-   qp_lin = 1.0_dblk
-   dlsode_t = 0.0_dblk
-   call dlsode(lin_func,dlsode_neq,qp_lin,dlsode_t,1.0_dblk,&
-      dlsode_itol,&
-      dlsode_rtol,dlsode_atol,dlsode_itask,dlsode_istate,dlsode_iopt,&
-      dlsode_rwork,dlsode_lrw,dlsode_iwork,dlsode_liw,lin_jac,dlsode_mf)
-
-   print *,dlsode_istate ! istate=2 is success
-   call print_vector(qp_lin)
-     
-
-   stop
 
 
    call tic(clock)
    main: do while (ti < t1)
 
       integrate: do j=1,N_record_int
+
+         ! Integrate the variational problem (with the old data)
+         call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q_wrk,P_wrk,&
+            PjacQ,LUjacQ,PjacP,LUjacP)
         
+         dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses)&
+            /norm2(dqp_lin(1:6*n_masses))
+         dqp_lin(37:54) = Q_wrk
+         dqp_lin(55:72) = P_wrk
+         dqp_lin(80) = -1.0_dblk
+         dlsode_istate=1
+
+         call dlsode(lin_func,dlsode_neq,dqp_lin,dlsode_t,dlsode_t+dt,&
+            dlsode_itol,dlsode_rtol,dlsode_atol,dlsode_itask,dlsode_istate,&
+            dlsode_iopt,dlsode_rwork,dlsode_lrw,dlsode_iwork,dlsode_liw,&
+            lin_jac,dlsode_mf)
+      
+         !call print_vector(dqp_lin(1:36))
+
+      
          ! second-order SI method (with 0.5*dt from above and below)
          ! Do a full step of SI
          call symp_step(Qjac_wrk,Pjac_wrk,dt,symp_interdv,&
             symp_interdvjac,symp_Q_wrk,symp_qimqj,symp_qimqjnrm,jacP,PjacQ,&
             LUjacQ,jacT,symp_ind_wrk1,symp_ind_wrk2,m_vec,m_vec_jac,g_const)
-         !call symp_step(Qjac_tst_wrk,Pjac_tst_wrk,dt,symp_interdv,&
-         !   symp_interdvjac,symp_Q_wrk,symp_qimqj,symp_qimqjnrm,jacP,PjacQ,&
-         !   LUjacQ,jacT,symp_ind_wrk1,symp_ind_wrk2,m_vec,m_vec_jac,g_const)
-
 
          ! Do full step of kepler
          call kepler_step(Qjac_wrk, Pjac_wrk,dt,&
             kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
             kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
-         !call kepler_step(Qjac_tst_wrk, Pjac_tst_wrk,dt,&
-         !   kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
-         !   kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
 
-        
          ti = ti + dt
 
-         ! Record phase space distance ratios (and the moving average) 
-         ! and ``hop-back'' towards reference trajectory
-         !dPjac = Pjac_tst_wrk - Pjac_wrk
-         !dQjac = Qjac_tst_wrk - Qjac_wrk
-         !dxnrm = ps_dist(Pjac_tst_wrk,Qjac_tst_wrk,Pjac_wrk,Qjac_wrk,&
-         !   4,n_masses)
-         !print *,dxnrm
-         !
-         !ps_dist_rat_avg = (ps_dist_rat_avg + dble(j-1)*dlog(dxnrm/traj_pert))&
-         !   /dble(j)
-
-         !dPjac = dPjac/dxnrm * traj_pert
-         !dQjac = dQjac/dxnrm * traj_pert
-         !Pjac_tst_wrk = Pjac_wrk + dPjac
-         !Qjac_tst_wrk = Qjac_wrk + dQjac
-
       end do integrate
+
+      print *, ti,dlsode_t,norm2(dqp_lin(1:6*n_masses))
+      if (dlsode_istate /= 2) stop
 
       ! Record state of system
       i=i+1; 
       t(i)=ti;
-      !Qjac(:,i) = Qjac_wrk; Pjac(:,i) = Pjac_wrk;
-      !Qjac_tst(:,i) = Qjac_tst_wrk; Pjac_tst(:,i) = Pjac_tst_wrk;
-      !call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,i),P(:,i),&
+      !call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
       !   PjacQ,LUjacQ,PjacP,LUjacP)
-      !call apply_jacobi_inv(Qjac_tst_wrk,Pjac_tst_wrk,Q_tst(:,i),P_tst(:,i),&
-      !   PjacQ,LUjacQ,PjacP,LUjacP)
-!      Qjac(:,1) = Qjac_wrk; Pjac(:,1) = Pjac_wrk;
-!      Qjac_tst(:,1) = Qjac_tst_wrk; Pjac_tst(:,1) = Pjac_tst_wrk;
-      call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
-         PjacQ,LUjacQ,PjacP,LUjacP)
-      !call apply_jacobi_inv(Qjac_tst_wrk,Pjac_tst_wrk,Q_tst(:,1),P_tst(:,1),&
-      !   PjacQ,LUjacQ,PjacP,LUjacP)
-!      
-!      ! ps_dist_rat moving averaged over N_record_int iterations
-!      !ps_dist_rat(i) = ps_dist_rat_avg
-!      !ps_dist_rat_avg = 0.0_dblk
-!      
-!      dP = P_tst(:,1) - P(:,1)
-!      dQ = Q_tst(:,1) - Q(:,1)
-!      !dxnrm = ps_dist(P_tst(:,i),Q_tst(:,i),P(:,i),Q(:,i),&
-!      !   4,n_masses)
-!      dxnrm = ps_dist(P_tst(:,1),Q_tst(:,1),P(:,1),Q(:,1),&
-!         4,n_masses)
-!      !print *,dxnrm
-!
-!      !ps_dist_rat(i) = 1/(dt*dble(N_record_int))*dlog(&
-!      !   dxnrm/traj_pert)
-!      ps_dist_rat(i) = 1/(dt*dble(N_record_int))*(dlog(dxnrm)-dlog(traj_pert))
-!
-!      dP = dP / dxnrm * traj_pert
-!      dQ = dQ / dxnrm * traj_pert
-!
-!      P_tst(:,1) = P_tst(:,1) + dP
-!      Q_tst(:,1) = Q_tst(:,1) + dQ
-!
-!      call apply_jacobi(Q_tst(:,1),P_tst(:,1),Qjac_tst_wrk,Pjac_tst_wrk,jacQ,jacP)
-!      Qjac_tst(:,1) = Qjac_tst_wrk; Pjac_tst(:,1) = Pjac_tst_wrk;
-
-
-      !dxnrm = ps_dist(P_tst(:,1),Q_tst(:,1),P(:,1),Q(:,1),&
-      !   4,n_masses)
-      !ps_dist_rat(i) = dxnrm
-
 
       if ((N_iterations >= 10**7) .and. &
          (mod(i,floor(dble(N_save_int)/100_dblk)) == 0)) then
@@ -293,31 +265,16 @@ program lyapunov
    call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt,&
       kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
       kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
-   !call kepler_step(Qjac_tst_wrk, Pjac_tst_wrk, 0.5_dblk*dt,&
-   !   kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
-   !   kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
-
-
-   !Qjac(:,i) = Qjac_wrk; Pjac(:,i) = Pjac_wrk;
-   !Qjac_tst(:,i) = Qjac_tst_wrk; Pjac_tst(:,i) = Pjac_tst_wrk;
-   !call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,i),P(:,i),&
-   !   PjacQ,LUjacQ,PjacP,LUjacP)
-   !call apply_jacobi_inv(Qjac_tst_wrk,Pjac_tst_wrk,Q_tst(:,i),P_tst(:,i),&
-   !   PjacQ,LUjacQ,PjacP,LUjacP)
+   
    Qjac(:,1) = Qjac_wrk; Pjac(:,1) = Pjac_wrk;
-   Qjac_tst(:,1) = Qjac_tst_wrk; Pjac_tst(:,1) = Pjac_tst_wrk;
    call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
       PjacQ,LUjacQ,PjacP,LUjacP)
-   !call apply_jacobi_inv(Qjac_tst_wrk,Pjac_tst_wrk,Q_tst(:,1),P_tst(:,1),&
-   !   PjacQ,LUjacQ,PjacP,LUjacP)
-
 
    call save_orbit_lyapunov(savefile,t,Q,P,Qjac,Pjac,Q_tst,P_tst,&
       Qjac_tst,Pjac_tst,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,&
       m_vec,m_vec_jac,g_const,g_param,g_param_jac,ps_dist_rat)
  
    print *, "Computation complete!"
-
 
 
 end program lyapunov
@@ -328,10 +285,75 @@ subroutine lin_func(neq,t,y,ydot)
    integer (kind=4) :: neq
    real (kind=8) :: t,y(neq),ydot(neq)
 
-   integer (kind=4) :: i
+   integer (kind=4) :: i,n_masses,m,k
+   real (kind=8) :: q_0(18),p_0(18),m_vec(6),g_const
+   real (kind=8) :: qmmqk(3),rmk,temp
+
+   real (kind=8), save :: d2Hdq2(18,18)
+
    ! y and ydot are ordered as (Q P)^T
-  
-   ydot = -1.0*y
+   ! y = [ dq dp | q_0 p_0 m_vec g_const ]^T
+
+   n_masses = 6
+   g_const = y(79)
+   m_vec = y(73:78)
+   p_0 = y(55:72)
+   q_0 = y(37:54)
+
+   ! dq' = d^2H/dp^2 * dp
+   do i=0,n_masses-1
+      ydot(3*i+1) = 1/m_vec(i+1)*y(3*n_masses+3*i+1)
+      ydot(3*i+2) = 1/m_vec(i+1)*y(3*n_masses+3*i+2)
+      ydot(3*i+3) = 1/m_vec(i+1)*y(3*n_masses+3*i+3)
+   end do
+
+   ! dp' = -d^2H/dq^2 * dq
+   ! Build d2Hdq2
+   if (y(80) <= 0.0d0) then 
+      d2Hdq2 = 0.0d0
+      do m=0,n_masses-1
+         do k=0,m-1
+            qmmqk = q_0(3*m+1:3*m+3) - q_0(3*k+1:3*k+3)
+            rmk = norm2(qmmqk)
+            temp = g_const*m_vec(m+1)*m_vec(k+1)/rmk**3
+            d2Hdq2(3*m+1:3*m+3,3*k+1) = temp*((/1.0d0,0.0d0,0.0d0/)&
+               -3/(rmk**2)*qmmqk(1)*qmmqk)
+            d2Hdq2(3*m+1:3*m+3,3*k+2) = temp*((/0.0d0,1.0d0,0.0d0/)&
+               -3/(rmk**2)*qmmqk(2)*qmmqk)
+            d2Hdq2(3*m+1:3*m+3,3*k+3) = temp*((/0.0d0,0.0d0,1.0d0/)&
+               -3/(rmk**2)*qmmqk(3)*qmmqk)
+
+            d2Hdq2(3*k+1:3*k+3,3*m+1) = temp*((/1.0d0,0.0d0,0.0d0/)&
+               -3/(rmk**2)*qmmqk(1)*qmmqk)
+            d2Hdq2(3*k+1:3*k+3,3*m+2) = temp*((/0.0d0,1.0d0,0.0d0/)&
+               -3/(rmk**2)*qmmqk(2)*qmmqk)
+            d2Hdq2(3*k+1:3*k+3,3*m+3) = temp*((/0.0d0,0.0d0,1.0d0/)&
+               -3/(rmk**2)*qmmqk(3)*qmmqk)
+         end do
+      end do
+
+      ! Need to init diagonal blocks to zero first!!
+      do m=0,n_masses-1
+         do k=0,n_masses-1
+            if (m /= k) then
+               d2Hdq2(3*m+1:3*m+3,3*m+1:3*m+3) = &
+                  d2Hdq2(3*m+1:3*m+3,3*m+1:3*m+3)&
+                  - d2Hdq2(3*k+1:3*k+3,3*m+1:3*m+3)
+            end if
+         end do
+      end do
+
+      y(80) = 1.0d0 ! Change the build flag so we don't build again this run
+   end if
+
+   call dgemv('N',3*n_masses,3*n_masses,1.0d0,d2Hdq2,3*n_masses,y(1),1,0.0d0,ydot(3*n_masses+1),1)
+   !ydot(3*n_masses+1:6*n_masses) = 0.0d0
+   !do i=1,3*n_masses
+   !   do m=1,3*n_masses
+   !      ydot(3*n_masses+m) = ydot(3*n_masses+m) + d2Hdq2(m,i)*y(i) 
+   !   end do
+   !end do
+
 
 end subroutine lin_func
 

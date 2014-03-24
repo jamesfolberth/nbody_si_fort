@@ -203,12 +203,12 @@ module utils
 
       ! start writing data
       call write_dset(file_id, t, "t")
-      !call write_dset(file_id, Q, "Q")
-      !call write_dset(file_id, P, "P")
+      call write_dset(file_id, Q, "Q")
+      call write_dset(file_id, P, "P")
       !call write_dset(file_id, Qjac, "Qjac")
       !call write_dset(file_id, Pjac, "Pjac")
-      !call write_dset(file_id, Q_tst, "Q_tst")
-      !call write_dset(file_id, P_tst, "P_tst")
+      call write_dset(file_id, Q_tst, "Q_tst")
+      call write_dset(file_id, P_tst, "P_tst")
       !call write_dset(file_id, Qjac_tst, "Qjac_tst")
       !call write_dset(file_id, Pjac_tst, "Pjac_tst")
       call write_dset(file_id, jacQ, "jacQ")
