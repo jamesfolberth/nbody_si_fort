@@ -157,9 +157,12 @@ program orbit_lin_test
       PjacQ,LUjacQ,PjacP,LUjacP)
 
 
-   call save_orbit_lyapunov(savefile,t,Q,P,Qjac,Pjac,Q_tst,P_tst,&
-      Qjac_tst,Pjac_tst,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,&
-      m_vec,m_vec_jac,g_const,g_param,g_param_jac,ps_dist_rat)
+   !call save_orbit_lyapunov(savefile,t,Q,P,Qjac,Pjac,Q_tst,P_tst,&
+   !   Qjac_tst,Pjac_tst,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,&
+   !   m_vec,m_vec_jac,g_const,g_param,g_param_jac,ps_dist_rat)
+   call save_orbit(savefile,t,Q,P,Qjac,Pjac,&
+      jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,&
+      m_vec,m_vec_jac,g_const,g_param,g_param_jac)
  
    print *, "Computation complete!"
 

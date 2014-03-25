@@ -5,7 +5,7 @@ SHELL=/usr/bin/bash
 FORT=gfortran
 
 #FORTOPTS = -Wall -fbounds-check -funroll-loops -finline -ffast-math -march=native -mtune=native -O2
-FORTOPTS = -Wall -Wextra -march=native -mtune=native -funroll-loops -finline -finline-functions -Ofast
+FORTOPTS = -Wall -Wextra -march=native -mtune=native -funroll-loops -finline -finline-functions -O2
 #FORTOPTS = -Wall -Wextra -march=native -mtune=native -funroll-loops -finline -finline-functions -O0 -g -Q
 
 PWD=$(shell pwd)

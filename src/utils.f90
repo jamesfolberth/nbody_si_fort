@@ -184,17 +184,10 @@ module utils
    end subroutine save_orbit
 
 
-   subroutine save_orbit_lyapunov(savefile,t,Q,P,Qjac,Pjac,Q_tst,P_tst,&
-         Qjac_tst,Pjac_tst,jacQ,jacP,jacT,PjacQ,LUjacQ,PjacP,LUjacP,&
-         m_vec,m_vec_jac,g_const,g_param,g_param_jac,ps_dists)
+   subroutine save_orbit_lyapunov(savefile,t,N_record_int,dqp_norm,lambda)
       character (len=256) :: savefile
-      real (kind=dblk) :: t(:),Q(:,:),P(:,:),Qjac(:,:),Pjac(:,:),&
-                          Q_tst(:,:),P_tst(:,:),Qjac_tst(:,:),Pjac_tst(:,:),&
-                          jacQ(:,:),jacP(:,:),jacT(:,:),&
-                          LUjacQ(:,:),LUjacP(:,:),&
-                          m_vec(:),m_vec_jac(:),&
-                          g_const,g_param,g_param_jac(:),ps_dists(:)
-      integer (kind=intk) :: PjacQ(:),PjacP(:)
+      real (kind=dblk) :: t(:),dqp_norm(:),lambda(:)
+      integer (kind=intk) :: N_record_int
 
       integer (kind=intk) :: h5error, file_id
 
@@ -203,27 +196,9 @@ module utils
 
       ! start writing data
       call write_dset(file_id, t, "t")
-      call write_dset(file_id, Q, "Q")
-      call write_dset(file_id, P, "P")
-      !call write_dset(file_id, Qjac, "Qjac")
-      !call write_dset(file_id, Pjac, "Pjac")
-      call write_dset(file_id, Q_tst, "Q_tst")
-      call write_dset(file_id, P_tst, "P_tst")
-      !call write_dset(file_id, Qjac_tst, "Qjac_tst")
-      !call write_dset(file_id, Pjac_tst, "Pjac_tst")
-      call write_dset(file_id, jacQ, "jacQ")
-      call write_dset(file_id, jacP, "jacP")
-      call write_dset(file_id, jacT, "jacT")
-      call write_dset(file_id, PjacQ, "PjacQ")
-      call write_dset(file_id, LUjacQ, "LUjacQ")
-      call write_dset(file_id, PjacP, "PjacP")
-      call write_dset(file_id, LUjacP, "LUjacP")
-      call write_dset(file_id, m_vec, "m_vec")
-      call write_dset(file_id, m_vec_jac, "m_vec_jac")
-      call write_dset(file_id, g_const, "g_const")
-      call write_dset(file_id, g_param, "g_param")
-      call write_dset(file_id, g_param_jac, "g_param_jac")
-      call write_dset(file_id, ps_dists, "ps_dists")
+      call write_dset(file_id, dble(N_record_int), "N_record_int")
+      call write_dset(file_id, dqp_norm, "dqp_norm")
+      call write_dset(file_id, lambda, "lambda")
     
       call h5fclose_f(file_id,h5error)
       call h5close_f(h5error)

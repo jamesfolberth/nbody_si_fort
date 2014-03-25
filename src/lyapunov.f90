@@ -29,14 +29,14 @@ program lyapunov
 
    ! run config parameters
    character (len=256), parameter :: savefile='../data/lyapunov.h5'
-   integer (kind=intk), parameter :: N_record_int = 1000 ! record state every N_record_int time steps
-   integer (kind=intk), parameter :: N_saves = 100
+   integer (kind=intk), parameter :: N_record_int = 10000 ! record state every N_record_int time steps
+   integer (kind=intk), parameter :: N_saves = 1000
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
-   real (kind=dblk), parameter :: t1 = t0+10**5 ! JD=2430000.5
-   real (kind=dblk), parameter :: dt = 1.0_dblk ! time step
+   real (kind=dblk), parameter :: t1 = t0+10**9 ! JD=2430000.5
+   real (kind=dblk), parameter :: dt = 0.10_dblk ! time step
    real (kind=dblk), parameter :: traj_pert = 1.0E-4_dblk
-   integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/N_record_int)
+   integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/(dt*N_record_int))
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
    integer (kind=intk) :: N_iterations
 
@@ -56,10 +56,9 @@ program lyapunov
    integer (kind=intk) :: dlsode_liw = 20
    integer (kind=intk) :: dlsode_mf = 10
 
-   real (kind=dblk) :: dlsode_t
+   real (kind=dblk) :: dlsode_t,temp
    real (kind=dblk) :: dqp_lin(2*6*n_masses+n_masses+2)
-   real (kind=dblk) :: u_lin(2*6*n_masses+n_masses+2)
-   real (kind=dblk) :: ydot(6*n_masses)
+   real (kind=dblk), allocatable :: dqp_norm(:),lambda(:)
    ! dqp_lin storage
    ! [ dq dp | q_0 p_0 m_vec g_const build_d2Hdq2_flag ]^T
    !    neq  | other variables
@@ -73,10 +72,9 @@ program lyapunov
       Pjac_wrk(3*n_masses),Qjac_wrk(3*n_masses)
    real (kind=dblk), allocatable :: P(:,:),Q(:,:),Pjac(:,:),Qjac(:,:)
       ! test trajectory
-   real (kind=dblk) :: P_tst_wrk(3*n_masses),Q_tst_wrk(3*n_masses),&
-      Pjac_tst_wrk(3*n_masses),Qjac_tst_wrk(3*n_masses)
-   real (kind=dblk), allocatable :: P_tst(:,:),Q_tst(:,:),Pjac_tst(:,:),Qjac_tst(:,:)
-
+   !real (kind=dblk) :: P_tst_wrk(3*n_masses),Q_tst_wrk(3*n_masses),&
+   !   Pjac_tst_wrk(3*n_masses),Qjac_tst_wrk(3*n_masses)
+   !real (kind=dblk), allocatable :: P_tst(:,:),Q_tst(:,:),Pjac_tst(:,:),Qjac_tst(:,:)
 
    real (kind=dblk) :: jacQ(3*n_masses,3*n_masses),&
       LUjacQ(3*n_masses,3*n_masses),jacP(3*n_masses,3*n_masses),&
@@ -101,13 +99,13 @@ program lyapunov
    real (kind=dblk) :: ti
 
    ! Phase space distances
-   real (kind=dblk), allocatable :: ps_dist_rat(:)
-   real (kind=dblk) :: ps_dist_rat_avg,dxnrm
-   real (kind=dblk) :: dPjac(3*n_masses),dQjac(3*n_masses)
-   real (kind=dblk) :: dP(3*n_masses),dQ(3*n_masses)
+   !real (kind=dblk), allocatable :: ps_dist_rat(:)
+   !real (kind=dblk) :: ps_dist_rat_avg,dxnrm
+   !real (kind=dblk) :: dPjac(3*n_masses),dQjac(3*n_masses)
+   !real (kind=dblk) :: dP(3*n_masses),dQ(3*n_masses)
 
    ! initialize (allocatable) variables
-   allocate(t(N_records),ps_dist_rat(N_records))
+   allocate(t(N_records),dqp_norm(N_records),lambda(N_records))
    !allocate(P(3*n_masses, N_records), Q(3*n_masses, N_records))
    !allocate(Pjac(3*n_masses, N_records), Qjac(3*n_masses, N_records))
    !allocate(P_tst(3*n_masses, N_records), Q_tst(3*n_masses, N_records))
@@ -161,13 +159,13 @@ program lyapunov
 
 
    ! main loop
-   if (floor((t1-t0)/dt/N_record_int) /= &
-       ceiling((t1-t0)/dt/N_record_int)) then
-      N_iterations = floor((t1-t0)/dt/N_record_int)*N_record_int + N_record_int
-   else
-      N_iterations = floor((t1-t0)/dt/N_record_int)*N_record_int
-   end if
-   print *,"Num iterations = ", dble(N_iterations)
+   !if (floor((t1-t0)/dt/N_record_int) /= &
+   !    ceiling((t1-t0)/dt/N_record_int)) then
+   !   N_iterations = floor((t1-t0)/dt/N_record_int)*N_record_int + N_record_int
+   !else
+   !   N_iterations = floor((t1-t0)/dt/N_record_int)*N_record_int
+   !end if
+   !print *,"Num iterations = ", dble(N_iterations)
 
 
    ! Intgrate dqp
@@ -179,12 +177,15 @@ program lyapunov
       dlsode_itol,dlsode_rtol,dlsode_atol,dlsode_itask,dlsode_istate,&
       dlsode_iopt,dlsode_rwork,dlsode_lrw,dlsode_iwork,dlsode_liw,&
       lin_jac,dlsode_mf)
+   dqp_norm = 1.0_dblk
+   dqp_norm(1) = norm2(dqp_lin(1:6*n_masses))
+   dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses)/norm2(dqp_lin(1:6*n_masses))
 
    !print *,dlsode_istate ! istate=2 is success
    !call print_vector(dqp_lin(1:36))
 
 
-   i = 0
+   i = 1
    iter = 1
    ti = t0
  
@@ -195,7 +196,6 @@ program lyapunov
       kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
 
 
-
    call tic(clock)
    main: do while (ti < t1)
 
@@ -204,9 +204,13 @@ program lyapunov
          ! Integrate the variational problem (with the old data)
          call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q_wrk,P_wrk,&
             PjacQ,LUjacQ,PjacP,LUjacP)
-        
-         dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses)&
-            /norm2(dqp_lin(1:6*n_masses))
+
+         !temp = norm2(dqp_lin(1:6*n_masses))
+         !print *, temp
+         !dqp_norm(1) = dqp_norm(1)*temp
+         !print *, temp, dqp_norm(1)
+         !dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses)/temp
+
          dqp_lin(37:54) = Q_wrk
          dqp_lin(55:72) = P_wrk
          dqp_lin(80) = -1.0_dblk
@@ -218,8 +222,8 @@ program lyapunov
             lin_jac,dlsode_mf)
       
          !call print_vector(dqp_lin(1:36))
+     
 
-      
          ! second-order SI method (with 0.5*dt from above and below)
          ! Do a full step of SI
          call symp_step(Qjac_wrk,Pjac_wrk,dt,symp_interdv,&
@@ -235,25 +239,29 @@ program lyapunov
 
       end do integrate
 
-      print *, ti,dlsode_t,norm2(dqp_lin(1:6*n_masses))
+      !print *, ti,dlsode_t,norm2(dqp_lin(1:6*n_masses))
       if (dlsode_istate /= 2) stop
+      temp = norm2(dqp_lin(1:6*n_masses))
+      dqp_norm(1) = dqp_norm(1)*temp
+      lambda(i) = 1.0_dblk/(ti-t0)*log(dqp_norm(1))
+      dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses)/temp
+      !print *, temp, dqp_norm(1)
 
       ! Record state of system
-      i=i+1; 
       t(i)=ti;
+      i=i+1; 
       !call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
       !   PjacQ,LUjacQ,PjacP,LUjacP)
 
-      if ((N_iterations >= 10**7) .and. &
-         (mod(i,floor(dble(N_save_int)/100_dblk)) == 0)) then
+      if (mod(i,floor(dble(N_save_int)/100_dblk)) == 0) then
          print *, "Percent complete: ", ti/t1*100_dblk
+         print *, ti, lambda(i-1)
          !print *, dxnrm
 
          ! save data every N_save_int iterations of i
          if (mod(i,N_save_int) == 0) then
-            call save_orbit_lyapunov(savefile,t,Q,P,Qjac,Pjac,Q_tst,P_tst,&
-               Qjac_tst,Pjac_tst,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,&
-               m_vec,m_vec_jac,g_const,g_param,g_param_jac,ps_dist_rat)
+            print *, "saving"
+            call save_orbit_lyapunov(savefile,t,N_record_int,dqp_norm,lambda)
  
          end if
       end if
@@ -266,16 +274,15 @@ program lyapunov
       kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
       kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
    
-   Qjac(:,1) = Qjac_wrk; Pjac(:,1) = Pjac_wrk;
-   call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
-      PjacQ,LUjacQ,PjacP,LUjacP)
+   !Qjac(:,1) = Qjac_wrk; Pjac(:,1) = Pjac_wrk;
+   !call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
+   !   PjacQ,LUjacQ,PjacP,LUjacP)
 
-   call save_orbit_lyapunov(savefile,t,Q,P,Qjac,Pjac,Q_tst,P_tst,&
-      Qjac_tst,Pjac_tst,jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,&
-      m_vec,m_vec_jac,g_const,g_param,g_param_jac,ps_dist_rat)
+   call save_orbit_lyapunov(savefile,t,N_record_int,dqp_norm,lambda)
  
    print *, "Computation complete!"
 
+   deallocate(t,dqp_norm,lambda)
 
 end program lyapunov
 
