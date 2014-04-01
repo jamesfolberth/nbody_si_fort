@@ -6,3 +6,5 @@ When you want to call a F77 library routine from F90, you _need_ to make an inte
 At least in Fortran 2003+, subroutine's local variables are automatically attributed as "save", so there is not really a need to pass work arrays each time.
 
 orbit.f90 integrates for N_record_int timesteps and then overwrites Q(:,1) and P(:,1).  So, those values aren't the initial conditions.
+
+

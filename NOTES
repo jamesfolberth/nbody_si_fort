@@ -22,3 +22,6 @@ LSODE
 Adams multistep - method flag mf=10, no jacobian used
 I can give it the work arrays and just ask it to give me the value at TOUT (which should be all I need).
 New system at every time step, so ISTATE = 1
+
+
+In Lyapunov, I think I'm finding stuff for the entire solar system (well, outer planets); I need to work with _just_ Pluto
