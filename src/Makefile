@@ -43,7 +43,7 @@ utils.o: utils.f90
 orbit: orbit.f90 coords.o kepler.o orbital_data.o symplectic.o utils.o
 	$(FORT) -c orbit.f90 $(FORTOPTS) $(INCHDF)
 	$(FORT) -flto -o orbit $(FORTOPTS) $(LIBHDF) $(LDLIBS) $(LDADDPATH) utils.o orbital_data.o coords.o kepler.o symplectic.o orbit.o 
-	#nice -n0 ./orbit
+	nice -n0 ./orbit
 
 lyapunov: lyapunov.f90 coords.o kepler.o orbital_data.o symplectic.o utils.o force
 	$(FORT) -c lyapunov.f90 $(FORTOPTS) $(INCHDF)

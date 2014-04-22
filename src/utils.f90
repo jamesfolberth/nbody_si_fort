@@ -227,10 +227,10 @@ module utils
 
    subroutine dwrite_dset_rank1(file_id, array, dsetname)
       integer (kind=intk) :: file_id
-      real (kind=dblk) :: array(:)
+      real (kind=8) :: array(:)
       character (len=*) :: dsetname
 
-      integer (kind=intk) :: dspace_id, dset_id, h5error
+      integer (kind=4) :: dspace_id, dset_id, h5error
       integer (kind=HSIZE_T) :: dims(1)
 
       dims(1) = size(array)

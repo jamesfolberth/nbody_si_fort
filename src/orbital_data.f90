@@ -17,6 +17,10 @@ module orbital_data
    ! Sun Pluto Jupiter ... Neptune (in Earth masses)
    real (kind=dblk), parameter, dimension(6) :: m_vec = (/ m_sun,&
       0.00218_dblk, 317.83_dblk, 95.159_dblk, 14.536_dblk, 17.147_dblk /) ! earth masses
+   ! Testing small Pluto mass
+   !real (kind=dblk), parameter, dimension(6) :: m_vec = (/ m_sun,&
+   !   0.00000000218_dblk, 317.83_dblk, 95.159_dblk, 14.536_dblk, 17.147_dblk /) ! earth masses
+ 
    integer (kind=intk), parameter :: n_masses = size(m_vec,1)
 
    contains

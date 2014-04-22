@@ -54,6 +54,7 @@ elseif strcmp(plot_type,'orb.h')
    %plot(t, orb.h)
    %plot(t, orb.e)
    plot(t,orb.e.*sin(orb.omega+orb.Omega))
+   axis([1960 10^9+1960]);
    %axis([t(1),t(end)]);
    %title('h=e\sin(\omega+\Omega)','Interpreter','tex');
    %xlabel('t [yr]');

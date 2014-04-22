@@ -201,7 +201,7 @@ program lyapunov
  
    dqp_norm = 1.0_dblk
    !temp = norm2(dqp_lin(1:6))
-   dqp_norm_wrk = dsqrt(norm2(dqp_lin(4:6))**2+norm2(dqp_lin(22:24))**2)&
+   dqp_norm_wrk = hypot(norm2(dqp_lin(4:6)),norm2(dqp_lin(22:24)))&
       /dqp_norm_prev
    
    !print *, dqp_norm_prev,dsqrt(norm2(dqp_lin(4:6))**2+norm2(dqp_lin(22:24))**2)
@@ -243,7 +243,8 @@ program lyapunov
          call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q_wrk,P_wrk,&
             PjacQ,LUjacQ,PjacP,LUjacP)
 
-         temp = dsqrt(norm2(dqp_lin(4:6))**2+norm2(dqp_lin(22:24))**2)
+         !temp = dsqrt(norm2(dqp_lin(4:6))**2+norm2(dqp_lin(22:24))**2)
+         temp = hypot(norm2(dqp_lin(4:6)),norm2(dqp_lin(22:24)))
          dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses) / temp
          dqp_norm_wrk = dqp_norm_wrk * temp
 
@@ -285,6 +286,8 @@ program lyapunov
          ti = ti + dt
 
       end do integrate
+
+      stop('stuff')
 
       !print *, ti,dlsode_t,norm2(dqp_lin(1:6*n_masses))
       if (dlsode_istate /= 2) stop
