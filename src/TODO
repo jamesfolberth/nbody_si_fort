@@ -2,7 +2,6 @@
 General
 =======
 Should cetain calculations be done in quad prec.? cf Saha 1994
-Plot error in Hamiltonian
 
 
 
@@ -12,27 +11,3 @@ data/
 
 src/
 ====
-src/coords.f90
-   Test jacobi_inv (sparse)
-   apply_jacobi_inv: write sparse FW/BW subs
-   apply_jacobi_invq: sparse subs routine
-
-
-src/kepler.f90
-
-
-src/symplectic.f90
-   
-
-src/orbit.f90
-   change dt to 1 (set to 1.1111111 to make matlab)
-   increment ti by 0.5dt when I do 0.5dt kepler steps? 
-   print proportion of computation complete to stdout
-
-
-src/orbital_data.f90
-
-
-src/utils.f90
-   Should I move debug flag somewhere else?
-

@@ -62,8 +62,6 @@ module symplectic
          ! sweep through interdv
          ! add left parts
          do i=j,n_masses-2
-            !print *, qimqj(3*i+1:3*i+3,j)
-            !print *, qimqjnrm(i+1,j)
             interdv(3*i+1:3*i+3) = interdv(3*i+1:3*i+3) + g_const*m_vec(j)*&
                qimqj(3*i+1:3*i+3,j) / (qimqjnrm(i+1,j)**3)
          end do
@@ -71,8 +69,6 @@ module symplectic
          ! add right parts (but sweep down to do it, using anti-symmetry of
          ! qimqj)
          do i=j+1,n_masses-1
-            !print *, -qimqj(3*i+1:3*i+3,j+1)
-            !print *, qimqjnrm(i+1,j+1)
             interdv(3*j+1:3*j+3) = interdv(3*j+1:3*j+3) - g_const*m_vec(i+1)*&
                qimqj(3*i+1:3*i+3,j+1) / (qimqjnrm(i+1,j+1)**3)
          end do
@@ -80,7 +76,6 @@ module symplectic
 
       ! final entry
       do i=1,n_masses-2
-         !print *, qimqj(3*n_masses-2:3*n_masses,i+1)
          interdv(3*n_masses-2:3*n_masses) = interdv(3*n_masses-2:3*n_masses) &
             + g_const*m_vec(i+1)*qimqj(3*n_masses-2:3*n_masses,i+1)&
             / (qimqjnrm(n_masses,i+1)**3)
@@ -89,21 +84,15 @@ module symplectic
       !call print_vector(interdv)
      
       ! convert to Jacobi coords
-      !do i=1,n_masses-1
-      !   interdv(3*i+1:3*i+3) = interdv(3*i+1:3*i+3) * m_vec(i+1) 
-      !end do
-
       call apply_jacobiqp(interdv,interdvjac,jacQ)
+      ! make it a momentum
       do i=1,n_masses-1
          interdvjac(3*i+1:3*i+3) = interdvjac(3*i+1:3*i+3) * m_vec_jac(i+1) 
       end do
 
-     
-      !call print_vector(interdvjac)
-
-
       ! Indirect terms
       ! Saha 1994; Encke's method for a better way of doing r'/r'^3 - r/r^3
+      ! Encke's method is discussed in Danby - Fundamentals of Celestial Mech.
       temp = Q_wrk(1:3) ! Sun's position (we're moving to helio-centric)
       do i=1,n_masses-1
          ind_wrk1(3*i+1:3*i+3) = Q_wrk(3*i+1:3*i+3) - temp ! heliocentric
@@ -111,7 +100,7 @@ module symplectic
          qjacnrm(i+1) = norm2(Qjac_wrk(3*i+1:3*i+3))
          ind_wrk1(3*i+1:3*i+3) = ind_wrk1(3*i+1:3*i+3) / (qhnrm(i+1)**3)
       end do
-      ! we don't need 1st entry of qhnrm or qjacnrm
+      ! we don't use 1st entry of qhnrm or qjacnrm
       ind_wrk1(1:3) = 0.0_dblk
 
       call apply_jacT(ind_wrk1,ind_wrk2,jacT)

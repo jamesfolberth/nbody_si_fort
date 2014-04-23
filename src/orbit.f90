@@ -1,5 +1,8 @@
 ! orbit.f90
 
+! This program integrates the orbits of the outer planets using the SI
+! from Wisdom/Holman 1991.  Data are saved using HDF5.
+
 program orbit
    
    use utils ! helper routines, data types
@@ -17,7 +20,7 @@ program orbit
    integer (kind=intk), parameter :: N_saves = 20
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
-   real (kind=dblk), parameter :: t1 = t0+10**9 ! JD=2430000.5
+   real (kind=dblk), parameter :: t1 = t0+10**5 ! JD=2430000.5
    real (kind=dblk), parameter :: dt = 1.0_dblk ! time step
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/N_record_int)
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
@@ -34,6 +37,10 @@ program orbit
    integer (kind=intk):: PjacQ(3*n_masses), PjacP(3*n_masses)
 
    ! variables 'local' to kepler_step
+   ! Note that these are used only inside of the kepler routines
+   ! It turns out that Fortran keeps local variables in memory (unless they
+   ! are explicitly deallocated) during runtime; so, there shouldn't be a 
+   ! performance penalty to just declare these _inside_ of kepler_step.
    real (kind=dblk) :: kep_r(n_masses), kep_v(n_masses), kep_u(n_masses),&
       kep_a(n_masses), kep_n(n_masses), kep_EC(n_masses), kep_ES(n_masses),&
       kep_e(n_masses), kep_dE(n_masses), kep_dtv(n_masses),kep_C(n_masses),&
@@ -41,6 +48,7 @@ program orbit
       kep_fp(n_masses),kep_gp(n_masses)
 
    ! variables 'local' to symp_step
+   ! see the note for kepler_step variables; same applies here
    real (kind=dblk) :: symp_interdv(3*n_masses),symp_interdvjac(3*n_masses),&
       symp_Q_wrk(3*n_masses),symp_qimqj(3*n_masses,3*n_masses),&
       symp_qimqjnrm(n_masses,n_masses),symp_ind_wrk1(3*n_masses),&
@@ -54,15 +62,13 @@ program orbit
    allocate(t(N_records))
    allocate(P(3*n_masses, N_records), Q(3*n_masses, N_records))
    allocate(Pjac(3*n_masses, N_records), Qjac(3*n_masses, N_records))
-
    P=0; Q=0; Pjac=0; Qjac=0;
 
 
    ! Set the initial conditions
    call WH_initial_data(P,Q)
-   !call print_vector(Q(:,1))
 
-   ! set up jacobi coordinate functions
+   ! set up jacobi coordinate functions.  transform initial data to Jacobi
    call jacobi_setup(jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,eta,m_vec_jac,g_param_jac)
 
    Q_wrk = Q(:,1); P_wrk = P(:,1);
@@ -115,7 +121,9 @@ program orbit
       call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,i),P(:,i),&
          PjacQ,LUjacQ,PjacP,LUjacP)
 
-
+   
+      ! every once in a while, save the data (but only if we're integrating
+      ! for a long time)
       if (((t1-t0)/dt > 10**7) .and. &
          (mod(i,floor(dble(N_save_int)/100_dblk)) == 0)) then
          print *, "Percent complete: ", ti/t1*100_dblk

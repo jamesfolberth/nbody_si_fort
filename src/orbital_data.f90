@@ -4,7 +4,8 @@ module orbital_data
    
    use utils
   
-   ! Various solar system constants
+   ! Various solar system constants 
+   ! these are used throughout the code
    real (kind=dblk), parameter :: AU = 1.4959787066E11_dblk
    real (kind=dblk), parameter :: m_earth = 5.9736E24_dblk
    real (kind=dblk), parameter :: year_day = 365.256363004_dblk
@@ -13,7 +14,7 @@ module orbital_data
    real (kind=dblk), parameter :: g_const = 6.67428E-11_dblk * m_earth * year_sec**2 / (AU**3)
    real (kind=dblk), parameter :: g_param = g_const*m_sun
   
-   ! masses from Carroll and Ostlie
+   ! masses from Carroll and Ostlie - Intro to Modern Astrophysics
    ! Sun Pluto Jupiter ... Neptune (in Earth masses)
    real (kind=dblk), parameter, dimension(6) :: m_vec = (/ m_sun,&
       0.00218_dblk, 317.83_dblk, 95.159_dblk, 14.536_dblk, 17.147_dblk /) ! earth masses

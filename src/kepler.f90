@@ -9,7 +9,7 @@ module kepler
 
    contains
 
-   ! Initial value problem I from Danby
+   ! Initial value problem I from Danby - Fundamentals of Celestial Mechanics
    subroutine kepler_step(Qjac_wrk, Pjac_wrk,tau,r,v,u,a,n,EC,ES,&
                           e,dE,dtv,C,S,f,g,aor,fp,gp,m_vec_jac,g_param_jac)
       real (kind=dblk), intent(inout) :: Qjac_wrk(3*n_masses),&
@@ -39,13 +39,14 @@ module kepler
       !v = 0.0_dblk
       !u = 0.0_dblk
       do i=1,n_masses-1
-         bigV = Pjac_wrk(3*i+1:3*i+3)/m_vec_jac(i+1)
+         bigV = Pjac_wrk(3*i+1:3*i+3)/m_vec_jac(i+1) ! 3-vector
          bigR = Qjac_wrk(3*i+1:3*i+3)
          v(i+1) = norm2(bigV)
          r(i+1) = norm2(bigR)
          u(i+1) = bigR(1)*bigV(1)+bigR(2)*bigV(2)+bigR(3)*bigV(3)
       end do
 
+      ! semi-major axes
       a = 1.0_dblk / (2.0_dblk / r - v*v / g_param_jac)
 
       if (any(a(2:n_masses) <= 0)) then
@@ -57,7 +58,7 @@ module kepler
 
       EC = 1.0_dblk - r/a
       ES = u / (n*a*a)
-      e = sqrt(EC*EC+ES*ES)
+      e = sqrt(EC*EC+ES*ES) ! eccentricities
 
       !dE = 0.0_dblk
       !dtv = 0.0_dblk
@@ -80,6 +81,11 @@ module kepler
          ke_dx = 1.0_dblk
          ke_counter = 0
          do while (dabs(ke_dx) > 10.0E-14_dblk )
+            ! if debug == .false., this will be removed by the compiler 
+            ! during compilation; that way, it won't appear during run-time
+            ! if this iteration doesn't converge, we'll catch the mistake 
+            ! when the semi-major axes get all messed up in the next few
+            ! calls to kepler_step
             if (debug) then
                if (ke_counter >= 10) then
                   exit
@@ -113,7 +119,7 @@ module kepler
 
       C = dcos(dE); S = dsin(dE);
 
-      ! Lagrange f,g functions
+      ! Lagrange f,g functions to compute new positions and momenta
       f = a / r * (C-1.0_dblk) + 1.0_dblk
       g = dtv + 1.0_dblk / n * (S-dE)
       aor = 1.0_dblk / (1.0_dblk - EC*C+ES*S)

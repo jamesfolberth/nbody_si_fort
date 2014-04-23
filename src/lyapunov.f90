@@ -1,5 +1,10 @@
 ! lyapunov.f90
 
+! using the "variational method" of Sussman/Wisdom 1988, estimate
+! the largest positive lyapunov exponent of Pluto.
+! Due to the large number of calls to DLSODE, this code is considerably
+! slower than orbit.f90
+
 program lyapunov
    
    use utils ! helper routines, data types
@@ -38,13 +43,11 @@ program lyapunov
    real (kind=dblk), parameter :: traj_pert = 1.0E0_dblk
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/(dt*N_record_int))
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
-   integer (kind=intk) :: N_iterations
 
 
    ! DLSODE setup
    external :: lin_func, lin_jac
    integer (kind=intk) :: dlsode_neq(1) = (/6*n_masses/)
-   !integer (kind=intk) :: dlsode_neq(1) = (/6/)
    integer (kind=intk) :: dlsode_itol = 1
    real (kind=dblk) :: dlsode_rtol(1)=(/1E-10_dblk/)
    real (kind=dblk) :: dlsode_atol(1)=(/1E-10_dblk/)
@@ -52,16 +55,13 @@ program lyapunov
    integer (kind=intk) :: dlsode_istate = 1
    integer (kind=intk) :: dlsode_iopt = 0
    real (kind=dblk) :: dlsode_rwork(20+16*6*n_masses)
-   !real (kind=dblk) :: dlsode_rwork(20+16*6)
    integer (kind=intk) :: dlsode_lrw = 20+16*6*n_masses
-   !integer (kind=intk) :: dlsode_lrw = 20+16*6
    integer (kind=intk) :: dlsode_iwork(20)
    integer (kind=intk) :: dlsode_liw = 20
    integer (kind=intk) :: dlsode_mf = 10
 
    real (kind=dblk) :: dlsode_t,temp
    real (kind=dblk) :: dqp_lin(2*6*n_masses+n_masses+2)
-   !real (kind=dblk) :: dqp_lin(6+6*n_masses+n_masses+2)
    real (kind=dblk), allocatable :: dqp_norm(:),dqp_norm_wrk,dqp_norm_prev,&
       lambda(:)
    ! dqp_lin storage
@@ -72,15 +72,13 @@ program lyapunov
    ! variables
    real (kind=dblk), allocatable :: t(:)
 
-      ! reference trajectory
+   ! reference trajectory (similar to orbit.f90, except that we don't
+   ! store the position and momentum at each time step)
    real (kind=dblk) :: P_wrk(3*n_masses),Q_wrk(3*n_masses),&
       Pjac_wrk(3*n_masses),Qjac_wrk(3*n_masses)
    real (kind=dblk), allocatable :: P(:,:),Q(:,:),Pjac(:,:),Qjac(:,:)
-      ! test trajectory
-   !real (kind=dblk) :: P_tst_wrk(3*n_masses),Q_tst_wrk(3*n_masses),&
-   !   Pjac_tst_wrk(3*n_masses),Qjac_tst_wrk(3*n_masses)
-   !real (kind=dblk), allocatable :: P_tst(:,:),Q_tst(:,:),Pjac_tst(:,:),Qjac_tst(:,:)
-
+  
+   ! coordinate transformation variables
    real (kind=dblk) :: jacQ(3*n_masses,3*n_masses),&
       LUjacQ(3*n_masses,3*n_masses),jacP(3*n_masses,3*n_masses),&
       LUjacP(3*n_masses,3*n_masses),jacT(3*n_masses,3*n_masses),&
@@ -88,6 +86,7 @@ program lyapunov
    integer (kind=intk):: PjacQ(3*n_masses), PjacP(3*n_masses)
 
    ! variables 'local' to kepler_step
+   ! see the note in orbit.f90
    real (kind=dblk) :: kep_r(n_masses), kep_v(n_masses), kep_u(n_masses),&
       kep_a(n_masses), kep_n(n_masses), kep_EC(n_masses), kep_ES(n_masses),&
       kep_e(n_masses), kep_dE(n_masses), kep_dtv(n_masses),kep_C(n_masses),&
@@ -101,55 +100,26 @@ program lyapunov
       symp_ind_wrk2(3*n_masses)
 
    integer (kind=intk) :: i,j,clock,iter
-   real (kind=dblk) :: ti,testing(36)
-
-   ! Phase space distances
-   !real (kind=dblk), allocatable :: ps_dist_rat(:)
-   !real (kind=dblk) :: ps_dist_rat_avg,dxnrm
-   !real (kind=dblk) :: dPjac(3*n_masses),dQjac(3*n_masses)
-   !real (kind=dblk) :: dP(3*n_masses),dQ(3*n_masses)
+   real (kind=dblk) :: ti
 
    ! initialize (allocatable) variables
    allocate(t(N_records),dqp_norm(N_records),lambda(N_records))
-   !allocate(P(3*n_masses, N_records), Q(3*n_masses, N_records))
-   !allocate(Pjac(3*n_masses, N_records), Qjac(3*n_masses, N_records))
-   !allocate(P_tst(3*n_masses, N_records), Q_tst(3*n_masses, N_records))
-   !allocate(Pjac_tst(3*n_masses, N_records), Qjac_tst(3*n_masses, N_records))
    allocate(P(3*n_masses,1), Q(3*n_masses,1))
    allocate(Pjac(3*n_masses,1), Qjac(3*n_masses,1))
-   !allocate(P_tst(3*n_masses,1), Q_tst(3*n_masses,1))
-   !allocate(Pjac_tst(3*n_masses,1), Qjac_tst(3*n_masses,1))
-
-
    P=0.0_dblk; Q=0.0_dblk; Pjac=0.0_dblk; Qjac=0.0_dblk;
-   !P_tst=0; Q_tst=0; Pjac_tst=0; Qjac_tst=0;
 
 
    ! Set the initial conditions
    call WH_initial_data(P,Q)
-   !call WH_initial_data(P_tst,Q_tst)
-
-   
-   ! Perturb the initial data for the test trajectory (but only for pluto)
-   !Q_tst(4,1) = Q_tst(4,1) + traj_pert
 
    
    ! set up jacobi coordinate functions
    call jacobi_setup(jacQ,jacP,jact,PjacQ,LUjacQ,PjacP,LUjacP,eta,m_vec_jac,g_param_jac)
 
    Q_wrk = Q(:,1); P_wrk = P(:,1);
-   !Q_tst_wrk = Q_tst(:,1); P_tst_wrk = P_tst(:,1);
 
    call apply_jacobi(Q(:,1),P(:,1),Qjac_wrk,Pjac_wrk,jacQ,jacP)
    Qjac(:,1) = Qjac_wrk; Pjac(:,1) = Pjac_wrk;
-   !call apply_jacobi(Q_tst(:,1),P_tst(:,1),Qjac_tst_wrk,Pjac_tst_wrk,jacQ,jacP)
-   !Qjac_tst(:,1) = Qjac_tst_wrk; Pjac_tst(:,1) = Pjac_tst_wrk;
-
-  
-
-   ! Set up for phase space distances (variational method)  
-   !ps_dist_rat(1) = ps_dist(P(:,1),Q(:,1),P_tst(:,1),Q_tst(:,1),&
-   !   4,n_masses) 
 
 
    dqp_lin = 0.0_dblk
@@ -166,31 +136,9 @@ program lyapunov
    dqp_lin(79) = g_const
    dqp_lin(80) = -1.0_dblk
    
-   !dqp_lin(1) = traj_pert
-   !dqp_lin(2) = -0.5*traj_pert
-   !dqp_lin(4) = traj_pert
-   !dqp_lin(1:6) = dqp_lin(1:6)/norm2(dqp_lin(1:6))
-   !dqp_norm_prev = dsqrt(norm2(dqp_lin(4:6))**2+norm2(dqp_lin(22:24))**2)
-   !dqp_lin(7:24) = Q_wrk
-   !dqp_lin(25:42) = P_wrk
-   !dqp_lin(43:48) = m_vec
-   !dqp_lin(49) = g_const
-   !dqp_lin(50) = -1.0_dblk
-
-
-   ! main loop
-   !if (floor((t1-t0)/dt/N_record_int) /= &
-   !    ceiling((t1-t0)/dt/N_record_int)) then
-   !   N_iterations = floor((t1-t0)/dt/N_record_int)*N_record_int + N_record_int
-   !else
-   !   N_iterations = floor((t1-t0)/dt/N_record_int)*N_record_int
-   !end if
-   !print *,"Num iterations = ", dble(N_iterations)
-
-
+   
    ! Intgrate dqp
    dqp_lin(80) = -1.0_dblk
-   !dqp_lin(50) = -1.0_dblk
    dlsode_t = 0.0_dblk
    dlsode_istate=1
 
@@ -200,14 +148,10 @@ program lyapunov
       lin_jac,dlsode_mf)
  
    dqp_norm = 1.0_dblk
-   !temp = norm2(dqp_lin(1:6))
    dqp_norm_wrk = hypot(norm2(dqp_lin(4:6)),norm2(dqp_lin(22:24)))&
       /dqp_norm_prev
    
-   !print *, dqp_norm_prev,dsqrt(norm2(dqp_lin(4:6))**2+norm2(dqp_lin(22:24))**2)
-   !dqp_norm_wrk = norm2(dqp_lin(1:6))
    dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses)/dqp_norm_wrk
-   !dqp_lin(1:6) = dqp_lin(1:6)/temp
 
    !print *,dlsode_istate ! istate=2 is success
    !call print_vector(dqp_lin(1:6*n_masses))
@@ -221,18 +165,7 @@ program lyapunov
    call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt,&
       kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
       kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
-   !call kepler_step(Qjac_tst_wrk, Pjac_tst_wrk, 0.5_dblk*dt,&
-   !   kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
-   !   kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
   
-   !call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q_wrk,P_wrk,&
-   !   PjacQ,LUjacQ,PjacP,LUjacP)
-   !call apply_jacobi_inv(Qjac_tst_wrk,Pjac_tst_wrk,Q_tst_wrk,P_tst_wrk,&
-   !   PjacQ,LUjacQ,PjacP,LUjacP)
-
-   !call print_vector(dqp_lin(1:18)-(Q_tst_wrk-Q_wrk))
-   !call print_vector(dqp_lin(19:36)-(P_tst_wrk-P_wrk))
-   !stop
 
    call tic(clock)
    main: do while (ti < t1)
@@ -243,25 +176,16 @@ program lyapunov
          call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q_wrk,P_wrk,&
             PjacQ,LUjacQ,PjacP,LUjacP)
 
+         ! renormalize length of dqp_lin vector
          !temp = dsqrt(norm2(dqp_lin(4:6))**2+norm2(dqp_lin(22:24))**2)
          temp = hypot(norm2(dqp_lin(4:6)),norm2(dqp_lin(22:24)))
          dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses) / temp
          dqp_norm_wrk = dqp_norm_wrk * temp
 
-         !!dqp_norm_wrk = dqp_norm_wrk*norm2(dqp_lin(1:6))
-         !!print *, temp
-         !!dqp_norm_wrk = dqp_norm_wrk*norm2(dqp_lin(4:6))
-         !!!print *, temp, dqp_norm(1)
-         !temp = norm2(dqp_lin(1:6*n_masses))
-         !dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses)/temp
-         !!dqp_lin(1:6) = dqp_lin(1:6)/temp
-
+         ! store reference trajectory data (computed with SI method)
          dqp_lin(37:54) = Q_wrk
          dqp_lin(55:72) = P_wrk
-         dqp_lin(80) = -1.0_dblk
-         !dqp_lin(7:24) = Q_wrk
-         !dqp_lin(25:42) = P_wrk
-         !dqp_lin(50) = -1.0_dblk
+         dqp_lin(80) = -1.0_dblk ! build flag
          dlsode_istate=1
 
          call dlsode(lin_func,dlsode_neq,dqp_lin,dlsode_t,dlsode_t+dt,&
@@ -287,25 +211,20 @@ program lyapunov
 
       end do integrate
 
-      stop('stuff')
+      stop('terminating integration after one loop of integration (nothing is wrong)')
 
       !print *, ti,dlsode_t,norm2(dqp_lin(1:6*n_masses))
       if (dlsode_istate /= 2) stop
 
       dqp_norm(i) = dqp_norm_wrk
       lambda(i) = 1.0_dblk/(ti-t0)*dlog(dqp_norm(i))
-      !lambda(i) = 1.0_dblk/(ti-t0)*dlog(dqp_norm_wrk)
-      !dqp_norm(i) = dqp_norm_wrk
-      !dqp_lin(1:6*n_masses) = dqp_lin(1:6*n_masses)/temp
-      !dqp_lin(1:6) = dqp_lin(1:6)/temp
-      !print *, temp, dqp_norm(1)
 
-      ! Record state of system
       t(i)=ti;
       i=i+1; 
-      !call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
-      !   PjacQ,LUjacQ,PjacP,LUjacP)
 
+      ! Record state of system every once in a while
+      ! note that we don't store the reference trajector; only enough
+      ! information to analyze the lyapunov exponent data
       if (mod(i,floor(dble(N_save_int)/100_dblk)) == 0) then
          print *, "Percent complete: ", ti/t1*100_dblk
          print *, temp,dqp_norm(i-1),lambda(i-1)
@@ -322,14 +241,11 @@ program lyapunov
    call toc(clock)
 
    ! Finish the integration with a half-step (0.5dt) of kepler
+   ! (this isn't needed for lyapunov calculations)
    call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt,&
       kep_r,kep_v,kep_u,kep_a,kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,&
       kep_C,kep_S,kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
    
-   !Qjac(:,1) = Qjac_wrk; Pjac(:,1) = Pjac_wrk;
-   !call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,1),P(:,1),&
-   !   PjacQ,LUjacQ,PjacP,LUjacP)
-
    call save_orbit_lyapunov(savefile,t,N_record_int,dqp_norm,lambda)
  
    print *, "Computation complete!"
@@ -339,7 +255,7 @@ program lyapunov
 end program lyapunov
 
 
-! Linearization 
+! This is the linearization of the Hamiltonian ODEs
 subroutine lin_func(neq,t,y,ydot)
    integer (kind=4) :: neq
    real (kind=8) :: t,y(neq),ydot(neq)
@@ -348,21 +264,22 @@ subroutine lin_func(neq,t,y,ydot)
    real (kind=8) :: q_0(18),p_0(18),m_vec(6),g_const
    real (kind=8) :: qmmqk(3),rmk,temp
 
-   !real (kind=8), save :: d2Hdq2(18,18)
    real (kind=8), save :: d2Hdq2(18,18)
 
-   ! y and ydot are ordered as (Q P)^T
-   ! y = [ dq dp | q_0 p_0 m_vec g_const ]^T
+   ! dqp_lin = y storage
+   ! [ dq dp | q_0 p_0 m_vec g_const build_d2Hdq2_flag ]^T
+   !    neq  | other variables  <-- sizes
+
+   ! if build_d2Hdq2 <= 0.0d0, then we build d2Hdq2
+   ! We can probably get away with only building it once (due to short 
+   ! time steps)
+   ! TODO This is probably true, but test it to verify.
 
    n_masses = 6
    g_const = y(79)
    m_vec = y(73:78)
    p_0 = y(55:72)
    q_0 = y(37:54)
-   !g_const = y(49)
-   !m_vec = y(43:48)
-   !p_0 = y(25:42)
-   !q_0 = y(7:24)
 
    ! dq' = d^2H/dp^2 * dp
    do i=0,n_masses-1
@@ -377,9 +294,9 @@ subroutine lin_func(neq,t,y,ydot)
 
    ! dp' = -d^2H/dq^2 * dq
    ! Build d2Hdq2
-   if (y(80) <= 0.0d0) then 
-   !if (y(50) <= 0.0d0) then 
-      d2Hdq2 = 0.0d0
+   if (y(80) <= 0.0d0) then  ! this is the build_d2Hdq2 flag
+      d2Hdq2 = 0.0d0 ! local variables are saved after each call, so 
+                     ! be sure to init to zero!
       do m=0,n_masses-1
          do k=0,m-1
             qmmqk = q_0(3*m+1:3*m+3) - q_0(3*k+1:3*k+3)
@@ -412,35 +329,18 @@ subroutine lin_func(neq,t,y,ydot)
          end do
       end do
 
-      y(80) = 1.0d0 ! Change the build flag so we don't build again this run
-      !y(50) = 1.0d0 
+      y(80) = 1.0d0 ! Change the build flag so we don't build again for this
+                    ! call
    end if
 
+   ! d2Hdq2 is dense
+   ! N = 18 is near the cutoff for using matmul vs. dgemv
    call dgemv('N',18,18,1.0d0,d2Hdq2,18,y(1),1,0.0d0,ydot(19),1)
-   !ydot(3*n_masses+1:6*n_masses) = 0.0d0
-   !do i=1,3*n_masses
-   !   !do m=1,3*n_masses
-   !   do m=1,1
-   !      ydot(3*n_masses+m) = ydot(3*n_masses+m) + d2Hdq2(m,i)*y(i)
-   !      print *, d2Hdq2(m,i), ydot(3*n_masses+m)
-   !   end do
-   !end do
-   !stop
-
-   !ydot(4:6) = 0.0d0
-   !do i=0,n_masses-1
-   !   ydot(4) = ydot(4) + d2Hdq2(4,3*i+1)*y(1) + d2Hdq2(4,3*i+2)*y(2) &
-   !      + d2Hdq2(4,3*i+3)*y(3)
-   !   ydot(5) = ydot(5) + d2Hdq2(5,3*i+1)*y(1) + d2Hdq2(5,3*i+2)*y(2) &
-   !      + d2Hdq2(5,3*i+3)*y(3)
-   !   ydot(6) = ydot(6) + d2Hdq2(6,3*i+1)*y(1) + d2Hdq2(6,3*i+2)*y(2) &
-   !      + d2Hdq2(6,3*i+3)*y(3)
-   !end do
-
 
 end subroutine lin_func
 
-! Jacobian for lin_func; shouldn't be called for dlsode_mf=10
+! Jacobian for lin_func; will not be called for dlsode_mf=10 (Adam's 
+! multistep method)
 subroutine lin_jac(neq,t,y,ml,mu,pd,nrowpd)
    integer (kind=4) :: neq,ml,mu,nrowpd
    real (kind=8) :: t,y(neq),pd(nrowpd,neq)

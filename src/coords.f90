@@ -9,8 +9,9 @@ module coords
 
    contains
 
-      ! Set up Jacobi coordinate transformation stuff
-      subroutine jacobi_setup(jacQ,jacP,jacT,PjacQ,LUjacQ,PjacP,LUjacP,eta,m_vec_jac, g_param_jac)
+      ! Set up Jacobi coordinate transformation matrices, data, etc.
+      subroutine jacobi_setup(jacQ,jacP,jacT,PjacQ,LUjacQ,PjacP,LUjacP,&
+            eta,m_vec_jac, g_param_jac)
          real (kind=dblk) :: jacQ(:,:), jacP(:,:), jacT(:,:), &
                              LUjacQ(:,:), LUjacP(:,:), &
                              eta(:), m_vec_jac(:), g_param_jac(:)
@@ -124,6 +125,8 @@ module coords
          ! qjac <- jacQ*q
          ! pjac <- jacP*p
          ! Note that jacQ and jacP have the same sparsity pattern
+         ! this routine is "hard coded" to the sparsity pattern, and 
+         ! depends on the [Sun,Pluto,Jupiter,...,Neptune] ordering
          ! This is about 3 times faster than the above (dense) mat-vec
          qjac = 0.0_dblk
          pjac = 0.0_dblk
@@ -178,17 +181,21 @@ module coords
          !integer (kind=intk) :: info
 
          q = qjac
-         !call dgetrs('N',3*n_masses,1,LUjacQ,3*n_masses,PjacQ,q,3*n_masses,info)
+         !call dgetrs('N',3*n_masses,1,LUjacQ,3*n_masses,PjacQ,&
+         !q,3*n_masses,info)
          call apply_jacobi_invqp(qjac,q,PjacQ,LUjacQ)
          
          p = pjac
-         !call dgetrs('N',3*n_masses,1,LUjacP,3*n_masses,PjacP,p,3*n_masses,info)
+         !call dgetrs('N',3*n_masses,1,LUjacP,3*n_masses,PjacP,&
+         !p,3*n_masses,info)
          call apply_jacobi_invqp(pjac,p,PjacP,LUjacP)
       
       end subroutine apply_jacobi_inv
 
       
-      ! Convert Qjac from Jacobi coordinates
+      ! Convert Qjac or Pjac from Jacobi coordinates
+      ! This routine works for both Qjac and Pjac because
+      ! the sparsity pattern of jacQ and jacP is the same.
       ! Sparse routine is ~3.3 times faster than dense dgetrs
       pure subroutine apply_jacobi_invqp(qjac,q,PjacQ,LUjacQ)
          real (kind=dblk), intent(in) :: qjac(:),LUjacQ(:,:)
@@ -294,7 +301,7 @@ module coords
 
       ! Apply qt = jacT*q
       ! jacT is a sum from Saha 1994, represented as mat-vec
-      ! This is essentially sparse mat-vec
+      ! This is a sparse mat-vec
       pure subroutine apply_jacT(q,qt,jacT)
          real (kind=dblk), intent(in) :: q(:),jacT(:,:)
          real (kind=dblk), intent(out) :: qt(:)

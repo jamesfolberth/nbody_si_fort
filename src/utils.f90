@@ -9,9 +9,10 @@ module utils
    integer, parameter :: intk = kind(1) ! get kind numbers of various types
    integer, parameter :: dblk = kind(1d0)
    real (kind=dblk), parameter :: pi = 4.0_dblk*atan(1.0_dblk)
-   logical, parameter :: debug = .true.
+   logical, parameter :: debug = .true. ! this flag is used in many of the other files
 
 
+   ! Generic interface for HDF5 dataset writing routine
    public write_dset
    private dwrite_dset_rank1, iwrite_dset_rank1,&
            dwrite_dset_rank2, dwrite_dset_rank0
@@ -54,20 +55,23 @@ module utils
    ! Phase Space Dist. !
    !!!!!!!!!!!!!!!!!!!!!
    ! {{{
-   function ps_dist(p1,q1,p2,q2,i,n_masses)
-      integer (kind=intk) :: i ! planet start index
-      integer (kind=intk), intent(in) :: n_masses
-      real (kind=dblk), intent(in) :: p1(3*n_masses),q1(3*n_masses),&
-         p2(3*n_masses),q2(3*n_masses)
-      real (kind=dblk) :: ps_dist
-     
-      ps_dist = 0_dblk
-      ps_dist = (p1(i)-p2(i))**2+(p1(i+1)-p2(i+1))**2+(p1(i+2)-p2(i+2))**2&
-            +(q1(i)-q2(i))**2+(q1(i+1)-q2(i+1))**2+(q1(i+2)-q2(i+2))**2
+  
+   ! DEPRECATED
+   ! Calculate the distance between two points in phase space
+   !function ps_dist(p1,q1,p2,q2,i,n_masses)
+   !   integer (kind=intk) :: i ! planet start index
+   !   integer (kind=intk), intent(in) :: n_masses
+   !   real (kind=dblk), intent(in) :: p1(3*n_masses),q1(3*n_masses),&
+   !      p2(3*n_masses),q2(3*n_masses)
+   !   real (kind=dblk) :: ps_dist
+   !  
+   !   ps_dist = 0_dblk
+   !   ps_dist = (p1(i)-p2(i))**2+(p1(i+1)-p2(i+1))**2+(p1(i+2)-p2(i+2))**2&
+   !         +(q1(i)-q2(i))**2+(q1(i+1)-q2(i+1))**2+(q1(i+2)-q2(i+2))**2
 
-      ps_dist = dsqrt(ps_dist)
+   !   ps_dist = dsqrt(ps_dist)
 
-   end function ps_dist
+   !end function ps_dist
    ! }}}
 
 
@@ -143,6 +147,8 @@ module utils
    ! HDF5 !
    !!!!!!!!
    ! {{{
+
+   ! Save the data from a run of orbit.f90
    subroutine save_orbit(savefile,t,Q,P,Qjac,Pjac,jacQ,jacP,jacT,&
                         PjacQ,LUjacQ,PjacP,LUjacP,m_vec,m_vec_jac,&
                         g_const,g_param,g_param_jac)
@@ -184,6 +190,8 @@ module utils
    end subroutine save_orbit
 
 
+   ! save "just enough" data to investigate lyapunov exponent
+   ! this is used in lyapunov.f90
    subroutine save_orbit_lyapunov(savefile,t,N_record_int,dqp_norm,lambda)
       character (len=256) :: savefile
       real (kind=dblk) :: t(:),dqp_norm(:),lambda(:)

@@ -10,8 +10,8 @@ function [] = lyap()
    % look towards the end, near index 3*10^6
    % loglog(1:10^7,lambda,'.');
    
-   %ind0 = 3*10^6;
-   ind0 = 1;
+   ind0 = 3*10^6;
+   %ind0 = 1;
    ind1 = 10^7;
    
    % Isolate probably convergent data in tail of lyapunov
@@ -21,14 +21,19 @@ function [] = lyap()
    % strip too small values
    bad_inds = ldat < ZERO_TOL;
    good_inds = not(bad_inds);
-   tdat = tdat(good_inds)(1:100:end);
-   ldat = ldat(good_inds)(1:100:end);
+   tdat = tdat(good_inds)(1:500:end);
+   ldat = ldat(good_inds)(1:500:end);
   
    % plot interdasting region
-   loglog(tdat,ldat,'.');
-   %axis([10^8 5*10^9, 10^(-7.3), 10^-6.8]);
-
-   error('stuff')
+   %loglog(tdat,ldat,'b');
+   loglog(t(10^6:500:end),lambda(10^6:500:end),'b'); % plot more data for zoom_fit plot
+   axis([10^8 5*10^9, 10^(-7.3), 10^-6.8]);
+  
+   % lyap_full: change ind0 to 1, unset axis
+   %xlabel('t ($\mathrm{yr}$)')
+   %ylabel('$\lambda_1$ ($\mathrm{yr}^{-1}$)','Interpreter','tex');
+   %print('../temp_plots/figures/lyap_full.tikz','-dtikz','-S640,480');
+   %error('stuff')
 
    % Levenberg-Marquardt to fit curve
    % TODO bad values in covp
@@ -59,6 +64,11 @@ function [] = lyap()
    % lyapunov exponent is limit as t->infinity
    lyap_exp = p(1)
    lyap_time = 1/p(1) % years
+
+   xlabel('t ($\mathrm{yr}$)')
+   ylabel('$\lambda_1$ ($\mathrm{yr}^{-1}$)','Interpreter','tex');
+   print('../temp_plots/figures/lyap_zoom_fit.tikz','-dtikz','-S640,480');
+ 
 
 end
 
