@@ -26,8 +26,8 @@ module orbital_data
 
    contains
 
-      ! Wisdom/Holman initial data 
-      ! TODO which paper?
+      ! Applegate 1986 & Wisdom/Holman 1991 initial data 
+      ! data from Applegate 1986 - Digital Orrery
       subroutine WH_initial_data(P,Q)
          real (kind=dblk), intent(inout) :: P(:,:), Q(:,:)
 
