@@ -39,7 +39,7 @@ program lyapunov
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
    real (kind=dblk), parameter :: t1 = t0+10**9 ! JD=2430000.5
-   real (kind=dblk), parameter :: dt = 0.10_dblk ! time step
+   real (kind=dblk), parameter :: dt = 0.50_dblk ! time step
    real (kind=dblk), parameter :: traj_pert = 1.0E0_dblk
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/(dt*N_record_int))
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
@@ -210,8 +210,9 @@ program lyapunov
          ti = ti + dt
 
       end do integrate
-
-      stop('terminating integration after one loop of integration (nothing is wrong)')
+   
+      !call toc(clock)
+      !stop('terminating integration after one loop of integration (nothing is wrong)')
 
       !print *, ti,dlsode_t,norm2(dqp_lin(1:6*n_masses))
       if (dlsode_istate /= 2) stop
@@ -329,7 +330,7 @@ subroutine lin_func(neq,t,y,ydot)
          end do
       end do
 
-      y(80) = 1.0d0 ! Change the build flag so we don't build again for this
+      y(80) = -1.0d0 ! Change the build flag so we don't build again for this
                     ! call
    end if
 

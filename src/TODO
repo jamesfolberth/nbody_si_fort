@@ -11,3 +11,4 @@ data/
 
 src/
 ====
+symplectic.f90: Am I doing Ruth's 2nd order method correctly?  I need to check how I'm splitting things in orbit/lyapunov, because I might have a 1st order method.  However, the relative Hamiltonian error matches that of Wisdom and Holman 1991, so I'm inclined to believe the splitting is correct, and that the SI is 2nd order.
