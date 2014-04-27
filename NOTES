@@ -24,4 +24,7 @@ I can give it the work arrays and just ask it to give me the value at TOUT (whic
 New system at every time step, so ISTATE = 1
 
 
-In Lyapunov, I think I'm finding stuff for the entire solar system (well, outer planets); I need to work with _just_ Pluto
+HDF5
+====
+In the code, I write the data to an HDF5 data file (filename.h5), and then load it into GNU Octave for analysis.  It turns out I can just use the default load command in Octave to load the data file; cool!
+

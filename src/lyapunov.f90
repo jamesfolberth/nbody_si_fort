@@ -33,7 +33,7 @@ program lyapunov
 
 
    ! run config parameters
-   character (len=256), parameter :: savefile='../data/lyapunov_dt_0.1.h5'
+   character (len=256), parameter :: savefile='../data/lyapunov_dt_0.5.h5'
    integer (kind=intk), parameter :: N_record_int = 1000 ! record state every N_record_int time steps
    integer (kind=intk), parameter :: N_saves = 1000
    
