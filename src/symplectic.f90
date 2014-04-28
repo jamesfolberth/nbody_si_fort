@@ -23,6 +23,10 @@ module symplectic
       integer (kind=intk) :: i,j
       real (kind=dblk) :: temp(3), qhnrm(n_masses),qjacnrm(n_masses)
 
+      ! first step of Ruth's 2nd order
+      ! only do center of mass term (see eqn. 4.22 in JMF senior thesis)
+      Qjac_wrk(1:3) = Qjac_wrk(1:3) + tau/2.0_dblk*Pjac_wrk(1:3)/m_vec_jac(1)
+      
       ! Calculate the gradient of the potential for the "kick" to Pjac
       ! Convert Qjac_wrk from Jacobi
       call apply_jacobi_invqp(Qjac_wrk,Q_wrk,PjacQ,LUjacQ)
@@ -115,12 +119,12 @@ module symplectic
       
       interdvjac = interdvjac + ind_wrk1
 
-      ! Apply symplectic transformation
+      ! Apply the rest of Ruth's 2nd order
       ! "Kick" Pjac
       Pjac_wrk = Pjac_wrk - tau*interdvjac
 
       ! center of mass
-      Qjac_wrk(1:3) = Qjac_wrk(1:3) + tau*Pjac_wrk(1:3)/m_vec_jac(1)
+      Qjac_wrk(1:3) = Qjac_wrk(1:3) + tau/2.0_dblk*Pjac_wrk(1:3)/m_vec_jac(1)
 
    end subroutine symp_step
 

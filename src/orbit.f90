@@ -20,7 +20,7 @@ program orbit
    integer (kind=intk), parameter :: N_saves = 20
    
    real (kind=dblk), parameter :: t0 = 1941.+6./365.25 ! JD=2430000.5
-   real (kind=dblk), parameter :: t1 = t0+10**5 ! JD=2430000.5
+   real (kind=dblk), parameter :: t1 = t0+10**9 ! JD=2430000.5
    real (kind=dblk), parameter :: dt = 1.0_dblk ! time step
    integer (kind=intk), parameter :: N_records = ceiling((t1-t0)/N_record_int)
    integer (kind=intk), parameter :: N_save_int = ceiling(dble(N_records)/dble(N_saves))
@@ -90,9 +90,9 @@ program orbit
    
    ! Do half a step of kepler
    ! TODO should ti also be moved forward by 0.5dt?
-   call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt, kep_r,kep_v,kep_u,kep_a,&
-      kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
-      kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
+   !call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt, kep_r,kep_v,kep_u,kep_a,&
+   !   kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
+   !   kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
 
 
    call tic(clock)
@@ -141,9 +141,9 @@ program orbit
    call toc(clock)
 
    ! Finish the integration with a half-step (0.5dt) of kepler
-   call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt, kep_r,kep_v,kep_u,kep_a,&
-      kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
-      kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
+   !call kepler_step(Qjac_wrk, Pjac_wrk, 0.5_dblk*dt, kep_r,kep_v,kep_u,kep_a,&
+   !   kep_n,kep_EC,kep_ES,kep_e,kep_dE,kep_dtv,kep_C,kep_S,&
+   !   kep_f,kep_g,kep_aor,kep_fp,kep_gp,m_vec_jac,g_param_jac)
 
    Qjac(:,i) = Qjac_wrk; Pjac(:,i) = Pjac_wrk;
    call apply_jacobi_inv(Qjac_wrk,Pjac_wrk,Q(:,i),P(:,i),&
