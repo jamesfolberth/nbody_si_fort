@@ -19,8 +19,8 @@ figure();
 %plot(t(1:10:end), (orb.i*180/pi)(1:10:end),'b')
 %plot(t, orb.h)
 %plot(t, orb.e)
-plot(t(1:50:end), (orb.i*180/pi)(1:50:end),'b')
-%plot(t(1:50:end),(orb.e.*sin(orb.omega+orb.Omega))(1:50:end),'b')
+%plot(t(1:50:end), (orb.i*180/pi)(1:50:end),'b')
+plot(t(1:50:end),(orb.e.*sin(orb.omega+orb.Omega))(1:50:end),'b')
 axis([1960 10^9+1960]);
 
 
@@ -35,15 +35,15 @@ rp = (orb.h).^2./g_param./(1+orb.e);
 ra = (orb.h).^2./g_param./(1-orb.e);
 a = 0.5*(rp+ra);
 hold on;
-plot(t(1:50:end), (orb.i*180/pi)(1:50:end),'r')
-%plot(t(1:50:end),(orb.e.*sin(orb.omega+orb.Omega))(1:50:end),'r')
+%plot(t(1:50:end), (orb.i*180/pi)(1:50:end),'r')
+plot(t(1:50:end),(orb.e.*sin(orb.omega+orb.Omega))(1:50:end),'r')
 hold off;
 
 xlabel('$t$ ($\mathrm{yr}$)','Interpreter','tex');
 %ylabel('$h$ ()','Interpreter','tex');
-ylabel('$i$ ()','Interpreter','tex');
+%ylabel('$i$ ()','Interpreter','tex');
 %print('../temp_plots/figures/comp_pluto_h.tikz','-dtikz','-S640,480');
-print('../temp_plots/figures/comp_pluto_i.tikz','-dtikz','-S640,480');
+%print('../temp_plots/figures/comp_pluto_i.tikz','-dtikz','-S640,480');
 
 
 

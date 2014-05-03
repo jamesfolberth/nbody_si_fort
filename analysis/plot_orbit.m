@@ -36,7 +36,7 @@ if strcmp(plot_type,'herr')
    
    figure()
    Herrr = (H-H(1))/H(1);
-   plot(t(1:end), Herrr(1:end))
+   plot(t(1:10:end), Herrr(1:10:end),'-')
 
 % Plot orbital elements
 elseif strcmp(plot_type,'orb.h')
